@@ -109,24 +109,23 @@
         }
 
         .category {
-            padding: 15px 20px; /* Increased padding */
+            padding: 15px 20px;
             font-weight: bold;
             background-color: #181a29;
             color: var(--category-color);
-            font-size: 16px; /* Increased font size */
+            font-size: 16px;
             text-transform: uppercase;
-            cursor: pointer; /* Make it look clickable */
+            cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
             transition: background-color 0.2s;
-            user-select: none; /* Prevent text selection on click */
+            user-select: none;
         }
         .category:hover {
             background-color: var(--bg-secondary);
         }
 
-        /* +/- icon for collapse/expand */
         .category::after {
             content: '+';
             font-size: 24px;
@@ -135,24 +134,18 @@
             transition: transform 0.3s ease-out;
         }
         .category.active::after {
-            content: '−'; /* Minus sign */
+            content: '−';
         }
 
-        /* Wrapper for collapsible links */
         .links-wrapper {
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.4s ease-in-out;
         }
         
-        /* When category is active, expand the wrapper */
-        .category.active + .links-wrapper {
-            max-height: 600px; /* Adjust if a category has many links */
-        }
-
         #sidebar a.nav-link {
             display: block;
-            padding: 12px 20px 12px 30px; /* Indent sub-links */
+            padding: 12px 20px 12px 30px;
             color: var(--text-secondary);
             text-decoration: none;
             border-bottom: 1px solid var(--border-color);
@@ -199,7 +192,7 @@
 </nav>
 
 <main>
-    <iframe id="viewer" name="viewer-frame"></iframe>
+    <iframe id="viewer" name="viewer-frame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
 </main>
 
 <script>
@@ -233,24 +226,25 @@
             let firstEmbeddableLink = null;
 
             data.categories.forEach((cat, index) => {
-                // Create category header
                 const catDiv = document.createElement('div');
                 catDiv.className = "category";
                 catDiv.textContent = cat.name;
                 
-                // Create wrapper for links
                 const linksWrapper = document.createElement('div');
                 linksWrapper.className = "links-wrapper";
                 
-                // Add click event to toggle collapse
                 catDiv.addEventListener('click', () => {
                     catDiv.classList.toggle('active');
+                    if (catDiv.classList.contains('active')) {
+                        linksWrapper.style.maxHeight = linksWrapper.scrollHeight + "px";
+                    } else {
+                        linksWrapper.style.maxHeight = "0";
+                    }
                 });
                 
                 linkList.appendChild(catDiv);
                 linkList.appendChild(linksWrapper);
 
-                // Populate links inside the wrapper
                 cat.links.forEach(link => {
                     const canEmbed = isWhitelisted(link.url);
                     const icon = canEmbed ? "🖼️" : "↗️";
@@ -260,7 +254,7 @@
                     a.innerHTML = `${icon} ${link.name}`;
 
                     a.addEventListener('click', (e) => {
-                        e.stopPropagation(); // Prevent category from collapsing when a link is clicked
+                        e.stopPropagation();
                         if (canEmbed) {
                             viewerFrame.src = link.url;
                             setActiveLink(a);
@@ -271,19 +265,17 @@
                     
                     linksWrapper.appendChild(a);
 
-                    // Find the very first link that can be embedded to show on load
                     if (!firstEmbeddableLink && canEmbed) {
                         firstEmbeddableLink = { linkElement: a, url: link.url };
                     }
                 });
 
-                // Open the first category by default
                 if (index === 0) {
                     catDiv.classList.add('active');
+                    linksWrapper.style.maxHeight = linksWrapper.scrollHeight + "px";
                 }
             });
 
-            // Load the first whitelisted link on startup
             if (firstEmbeddableLink) {
                 viewerFrame.src = firstEmbeddableLink.url;
                 setActiveLink(firstEmbeddableLink.linkElement);
@@ -298,9 +290,15 @@
 
         // --- EVENT LISTENERS & INITIALIZATION ---
         toggleSidebarBtn.addEventListener('click', () => {
-            document.body.classList.toggle('sidebar-collapsed');
+            const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebar-collapsed', isCollapsed);
         });
         
+        const isSidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+        if (isSidebarCollapsed) {
+            document.body.classList.add('sidebar-collapsed');
+        }
+
         setInterval(updateDateTime, 1000);
         updateDateTime();
         buildMenu();
