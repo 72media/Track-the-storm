@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ติดตามพายุใกล้ไทย (v3)</title>
+    <style>
+        :root {
+            --sidebar-width: 280px;
+            --header-height: 60px;
+            --bg-primary: #1e1e2f;
+            --bg-secondary: #27293d;
+            --bg-sidebar: #202233;
+            --text-primary: #ffffff;
+            --text-secondary: #cfd8dc;
+            --accent-color: #1abc9c;
+            --warning-color: #e74c3c;
+            --category-color: #ffcc66;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            grid-template-rows: var(--header-height) 1fr;
+            grid-template-areas:
+                "sidebar header"
+                "sidebar content";
+            transition: grid-template-columns 0.3s ease-in-out;
+        }
+
+        body.sidebar-collapsed {
+            grid-template-columns: 0 1fr;
+        }
+
+        header {
+            grid-area: header;
+            background-color: var(--bg-secondary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            z-index: 10;
+            position: relative;
+        }
+        
+        #toggle-sidebar-btn {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            font-size: 20px;
+            width: 35px;
+            height: 35px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #toggle-sidebar-btn:hover {
+            background-color: var(--accent-color);
+            color: var(--text-primary);
+            border-color: var(--accent-color);
+        }
+
+        #sidebar {
+            grid-area: sidebar;
+            background-color: var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #tmd-warning-container {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        #tmd-warning-container a {
+            display: block;
+            background-color: var(--warning-color);
+            color: var(--text-primary);
+            text-decoration: none;
+            text-align: center;
+            padding: 12px;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        #tmd-warning-container a:hover {
+            background-color: #c0392b;
+        }
+        
+        #linkList {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .category {
+            padding: 15px 20px; /* Increased padding */
+            font-weight: bold;
+            background-color: #181a29;
+            color: var(--category-color);
+            font-size: 16px; /* Increased font size */
+            text-transform: uppercase;
+            cursor: pointer; /* Make it look clickable */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+            user-select: none; /* Prevent text selection on click */
+        }
+        .category:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        /* +/- icon for collapse/expand */
+        .category::after {
+            content: '+';
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            transition: transform 0.3s ease-out;
+        }
+        .category.active::after {
+            content: '−'; /* Minus sign */
+        }
+
+        /* Wrapper for collapsible links */
+        .links-wrapper {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out;
+        }
+        
+        /* When category is active, expand the wrapper */
+        .category.active + .links-wrapper {
+            max-height: 600px; /* Adjust if a category has many links */
+        }
+
+        #sidebar a.nav-link {
+            display: block;
+            padding: 12px 20px 12px 30px; /* Indent sub-links */
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s, color 0.2s;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            background-color: var(--bg-sidebar);
+        }
+
+        #sidebar a.nav-link:hover, #sidebar a.nav-link.active {
+            background-color: var(--accent-color);
+            color: var(--text-primary);
+        }
+
+        main {
+            grid-area: content;
+            display: flex;
+            background-color: var(--text-primary);
+        }
+
+        iframe {
+            flex-grow: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <button id="toggle-sidebar-btn" title="เปิด/ปิดเมนู">☰</button>
+    <span id="datetime"></span>
+</header>
+
+<nav id="sidebar">
+    <div id="tmd-warning-container">
+        <a href="https://tmd.go.th/warning-and-events/warning-storm" target="_blank" rel="noopener noreferrer">
+            ประกาศเตือนจากกรมอุตุไทย
+        </a>
+    </div>
+    <div id="linkList"></div>
+</nav>
+
+<main>
+    <iframe id="viewer" name="viewer-frame"></iframe>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DATA SOURCE ---
+        const data = {
+            whitelist: ["https://himawari8.nict.go.jp/", "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/ghaz/gth_full.png", "https://realearth.ssec.wisc.edu/", "https://www.data.jma.go.jp/mscweb/data/himawari/sat_hrp.php", "https://zoom.earth/", "https://meteologix.com/ph/model-charts/euro/thailand/precipitation-total", "https://charts.ecmwf.int/products/medium-mslp-rain", "http://www.sattmet.tmd.go.th/satmet/satellte_radar/sat_radar.html", "https://www.tropicalstormrisk.com/", "https://sharaku.eorc.jaxa.jp/GSMaP/", "http://huahin.royalrain.go.th/WeatherData/imageHimawari_select.php", "https://maps.weather.gov.hk/wxviewer/index.html?lang=en"],
+            categories: [{name:"🌏 ดาวเทียม / ภาพถ่าย",links:[{name:"Himawari 8 (NICT)",url:"https://himawari8.nict.go.jp/"},{name:"NOAA GTH Full",url:"https://www.cpc.ncep.noaa.gov/products/precip/CWlink/ghaz/gth_full.png"},{name:"Real Earth",url:"https://realearth.ssec.wisc.edu/"},{name:"JMA Himawari",url:"https://www.data.jma.go.jp/mscweb/data/himawari/sat_hrp.php"},{name:"Zoom Earth",url:"https://zoom.earth/#view=12.8,118.6,5z"},{name:"GSMaP",url:"https://sharaku.eorc.jaxa.jp/GSMaP/"},{name:"Himawari (หัวหิน)",url:"http://huahin.royalrain.go.th/WeatherData/imageHimawari_select.php"},{name:"HK Weather Viewer",url:"https://maps.weather.gov.hk/wxviewer/index.html?lang=en"}]},{name:"🌊 พายุ / พยากรณ์",links:[{name:"Windy",url:"https://www.windy.com/"},{name:"Tropical Tidbits",url:"https://www.tropicaltidbits.com/"},{name:"ECMWF Charts",url:"https://charts.ecmwf.int/products/medium-mslp-rain"},{name:"Meteologix (Euro)",url:"https://meteologix.com/ph/model-charts/euro/thailand/precipitation-total"},{name:"Tropical Storm Risk",url:"https://www.tropicalstormrisk.com/"},{name:"Weather Nerds",url:"https://www.weathernerds.org/satellite/?initsatsrc=On&initsatname=Himawari"},{name:"Digital Typhoon",url:"http://agora.ex.nii.ac.jp/digital-typhoon/"},{name:"JTWC",url:"https://www.metoc.navy.mil/jtwc/jtwc.html"},{name:"Facebook HS8TV",url:"https://www.facebook.com/hs8tv"},{name:"ThaiWater Storm",url:"https://nationalthaiwater.onwr.go.th/storm"}]},{name:"📡 เรดาร์ฝน / สภาพอากาศ",links:[{name:"TMD Radar",url:"http://www.sattmet.tmd.go.th/satmet/satellte_radar/sat_radar.html"},{name:"FY Earth",url:"http://fyearth.nsmc.org.cn/fydq/thailand/cloudAltas/cloudAnalysis"}]}]
+        };
+
+        // --- DOM Elements ---
+        const linkList = document.getElementById('linkList');
+        const viewerFrame = document.getElementById('viewer');
+        const datetimeSpan = document.getElementById('datetime');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        let activeLinkElement = null;
+
+        // --- FUNCTIONS ---
+        const isWhitelisted = (url) => data.whitelist.some(whitelistedUrl => url.startsWith(whitelistedUrl));
+        
+        const setActiveLink = (element) => {
+            if (activeLinkElement) {
+                activeLinkElement.classList.remove('active');
+            }
+            activeLinkElement = element;
+            activeLinkElement.classList.add('active');
+        };
+
+        function buildMenu() {
+            linkList.innerHTML = "";
+            let firstEmbeddableLink = null;
+
+            data.categories.forEach((cat, index) => {
+                // Create category header
+                const catDiv = document.createElement('div');
+                catDiv.className = "category";
+                catDiv.textContent = cat.name;
+                
+                // Create wrapper for links
+                const linksWrapper = document.createElement('div');
+                linksWrapper.className = "links-wrapper";
+                
+                // Add click event to toggle collapse
+                catDiv.addEventListener('click', () => {
+                    catDiv.classList.toggle('active');
+                });
+                
+                linkList.appendChild(catDiv);
+                linkList.appendChild(linksWrapper);
+
+                // Populate links inside the wrapper
+                cat.links.forEach(link => {
+                    const canEmbed = isWhitelisted(link.url);
+                    const icon = canEmbed ? "🖼️" : "↗️";
+                    
+                    const a = document.createElement('a');
+                    a.className = 'nav-link';
+                    a.innerHTML = `${icon} ${link.name}`;
+
+                    a.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent category from collapsing when a link is clicked
+                        if (canEmbed) {
+                            viewerFrame.src = link.url;
+                            setActiveLink(a);
+                        } else {
+                            window.open(link.url, '_blank');
+                        }
+                    });
+                    
+                    linksWrapper.appendChild(a);
+
+                    // Find the very first link that can be embedded to show on load
+                    if (!firstEmbeddableLink && canEmbed) {
+                        firstEmbeddableLink = { linkElement: a, url: link.url };
+                    }
+                });
+
+                // Open the first category by default
+                if (index === 0) {
+                    catDiv.classList.add('active');
+                }
+            });
+
+            // Load the first whitelisted link on startup
+            if (firstEmbeddableLink) {
+                viewerFrame.src = firstEmbeddableLink.url;
+                setActiveLink(firstEmbeddableLink.linkElement);
+            }
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' };
+            datetimeSpan.textContent = now.toLocaleDateString('th-TH', options);
+        }
+
+        // --- EVENT LISTENERS & INITIALIZATION ---
+        toggleSidebarBtn.addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-collapsed');
+        });
+        
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+        buildMenu();
+    });
+</script>
+
+</body>
+</html>
