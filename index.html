@@ -206,7 +206,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         // --- DATA SOURCE ---
         const data = {
-            // เพิ่ม URL ของเว็บไซต์ใหม่ที่คุณต้องการให้แสดงใน iframe
+            // URL ที่สามารถแสดงใน iframe ได้
+            // สำหรับ URL ที่ไม่สามารถฝังได้ ให้ใส่เป็นลิงก์ธรรมดาในเมนู แล้วโค้ดจะเปิดในแท็บใหม่แทน
             whitelist: [
                 "https://himawari8.nict.go.jp/",
                 "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/ghaz/gth_full.png",
@@ -221,13 +222,12 @@
                 "http://huahin.royalrain.go.th/WeatherData/imageHimawari_select.php",
                 "https://maps.weather.gov.hk/wxviewer/index.html?lang=en",
                 "https://www.easterlywave.com/",
-                "https://www.pagasa.dost.gov.ph/",
                 "https://www.ventusky.com/",
                 "https://tropic.ssec.wisc.edu/",
                 "https://riskmap.disaster.go.th/",
                 "https://bigdata-swoc.rid.go.th/",
                 "https://pwrc.thaiwater.net/",
-                "https://cyclonicwx.com/" // เพิ่ม URL หลักของเว็บไซต์ใหม่
+                "https://www.pagasa.dost.gov.ph/" // เพิ่มลิงก์ PAGASA ใหม่
             ],
             categories: [
                 {
@@ -247,7 +247,7 @@
                 {
                     name: "🌊 พายุ / พยากรณ์",
                     links: [
-                        { name: "meteoblue", url: "https://www.meteoblue.com/en/weather/maps/kathu_thailand_1153035#coords=4.89/11.51/104.09&map=satellite~radar~none~none~none" },
+                        { name: "PAGASA (ฟิลิปปินส์)", url: "https://www.pagasa.dost.gov.ph/" }, // แทนที่ลิงก์ Windy.com
                         { name: "Tropical Tidbits", url: "https://www.tropicaltidbits.com/" },
                         { name: "ECMWF Charts", url: "https://charts.ecmwf.int/products/medium-mslp-rain" },
                         { name: "Meteologix (Euro)", url: "https://meteologix.com/ph/model-charts/euro/thailand/precipitation-total" },
@@ -258,7 +258,6 @@
                         { name: "Facebook HS8TV", url: "https://www.facebook.com/hs8tv" },
                         { name: "ThaiWater Storm", url: "https://nationalthaiwater.onwr.go.th/storm" },
                         { name: "Easterlywave", url: "https://www.easterlywave.com/typhoon/" },
-                        { name: "pagasa", url: "https://www.pagasa.dost.gov.ph/" }
                         { name: "SSEC MIMIC-TC", url: "https://tropic.ssec.wisc.edu/real-time/mimtc/tc.shtml" }
                     ]
                 },
@@ -274,8 +273,9 @@
                 {
                     name: "🛰️ ดูภาพจากดาวเทียม",
                     links: [
-                        { name: "Cyclonicwx NWPAC", url: "https://cyclonicwx.com/data/sat/gifs/nwpac_rgb.gif" }, // ลิงก์ใหม่
-                        { name: "Ventusky", url: "https://www.ventusky.com/?p=16.7;115.8;4&l=satellite" } // ย้ายมาจากหมวดพายุ
+                        // ลิงก์นี้จะเปิดในแท็บใหม่ เพราะไม่สามารถฝังใน iframe ได้
+                        { name: "Cyclonicwx NWPAC", url: "https://cyclonicwx.com/data/sat/gifs/nwpac_rgb.gif" }, 
+                        { name: "Ventusky", url: "https://www.ventusky.com/?p=16.7;115.8;4&l=satellite" }
                     ]
                 }
             ]
@@ -336,6 +336,7 @@
                     
                     a.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        // หากลิงก์อยู่ใน whitelist ให้แสดงใน iframe แต่ถ้าไม่อยู่ ให้เปิดในแท็บใหม่
                         if (canEmbed) {
                             viewerFrame.src = link.url;
                             setActiveLink(a);
@@ -351,12 +352,14 @@
                     }
                 });
 
+                // ขยายเมนูหมวดหมู่แรกโดยอัตโนมัติ
                 if (index === 0) {
                     catDiv.classList.add('active');
                     linksWrapper.style.maxHeight = linksWrapper.scrollHeight + "px";
                 }
             });
 
+            // ตั้งค่า iframe เริ่มต้นเป็นลิงก์แรกที่สามารถฝังได้
             if (firstEmbeddableLink) {
                 viewerFrame.src = firstEmbeddableLink.url;
                 setActiveLink(firstEmbeddableLink.linkElement);
