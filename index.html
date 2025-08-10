@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ติดตามพายุใกล้ไทย (v5)</title>
+    <title>ติดตามพายุใกล้ไทย (v13)</title>
     <style>
         :root {
             --sidebar-width: 280px;
@@ -52,7 +52,7 @@
             z-index: 10;
             position: relative;
         }
-        
+
         #toggle-sidebar-btn {
             background: none;
             border: 1px solid var(--text-secondary);
@@ -64,12 +64,13 @@
             cursor: pointer;
             transition: all 0.2s;
         }
+
         #toggle-sidebar-btn:hover {
             background-color: var(--accent-color);
             color: var(--text-primary);
             border-color: var(--accent-color);
         }
-        
+
         #facebook-btn {
             display: flex;
             align-items: center;
@@ -83,29 +84,34 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
             font-size: 14px;
         }
+
         #facebook-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
         }
+
         #facebook-btn:active {
             transform: translateY(2px);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
         }
+
         #facebook-btn img {
             width: 20px;
             height: 20px;
             margin-right: 8px;
         }
+        
+        .header-center {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-grow: 1;
+            justify-content: center;
+        }
 
         #datetime {
             font-size: 16px;
             color: var(--text-secondary);
-        }
-        
-        .header-left, .header-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
         }
 
         #sidebar {
@@ -116,12 +122,12 @@
             height: 100vh;
             overflow: hidden;
         }
-        
+
         #tmd-warning-container {
             padding: 15px;
             border-bottom: 1px solid var(--border-color);
         }
-        
+
         #tmd-warning-container a {
             display: block;
             background-color: var(--warning-color);
@@ -137,14 +143,14 @@
         #tmd-warning-container a:hover {
             background-color: #c0392b;
         }
-        
+
         #linkList {
             overflow-y: auto;
             flex-grow: 1;
             padding: 10px 0;
             position: relative;
         }
-        
+
         .drag-line {
             position: absolute;
             height: 2px;
@@ -176,6 +182,7 @@
             user-select: none;
             border-bottom: 1px solid var(--border-color);
         }
+
         .category:hover {
             background-color: var(--bg-secondary);
         }
@@ -187,19 +194,21 @@
             color: var(--text-secondary);
             transition: transform 0.3s ease-out;
         }
+
         .category.active::after {
             content: '−';
         }
+
         .category.dragging {
             opacity: 0;
         }
-        
+
         .links-wrapper {
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.4s ease-in-out;
         }
-        
+
         #sidebar a.nav-link {
             display: block;
             padding: 12px 20px 12px 30px;
@@ -213,7 +222,8 @@
             background-color: var(--bg-sidebar);
         }
 
-        #sidebar a.nav-link:hover, #sidebar a.nav-link.active {
+        #sidebar a.nav-link:hover,
+        #sidebar a.nav-link.active {
             background-color: var(--accent-color);
             color: var(--text-primary);
         }
@@ -221,26 +231,57 @@
         main {
             grid-area: content;
             display: flex;
+            flex-direction: column;
+            background-color: var(--bg-primary);
+            overflow: hidden;
+            position: relative;
+            padding: 0; /* เปลี่ยนจาก padding 20px เป็น 0 */
+        }
+
+        /* container สำหรับ iframe เดียว */
+        #single-iframe-container {
+            flex-grow: 1;
+            display: flex;
             background-color: var(--text-primary);
         }
 
-        iframe {
+        #viewer {
             flex-grow: 1;
             border: none;
             width: 100%;
             height: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* CSS สำหรับขยาย iframe เฉพาะรายการ SSEC TC Diurnal Cycle ให้เป็นกึ่งกลาง */
+        .centered-iframe-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .centered-iframe-container iframe {
+            width: 900px;
+            height: 600px;
         }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="header-left">
+    <!-- ปุ่มสำหรับเปิด/ปิด Sidebar -->
+    <div>
         <button id="toggle-sidebar-btn" title="เปิด/ปิดเมนู">☰</button>
+    </div>
+
+    <!-- ส่วนกลางที่รวมวันที่ -->
+    <div class="header-center">
         <span id="datetime"></span>
     </div>
-    <div class="header-right">
-        <!-- เพิ่มปุ่ม Facebook ที่นี่ -->
+
+    <!-- ส่วนขวาสำหรับปุ่ม Facebook -->
+    <div>
         <a href="https://www.facebook.com/hs8tv" target="_blank" rel="noopener noreferrer" id="facebook-btn" title="Ramrome Weather Facebook">
             <img src="https://i.ibb.co/s9fPg4Xr/facebook-logo-icon-181652.png" alt="Ramrome Weather Logo">
             <span>Ramrome Weather</span>
@@ -258,7 +299,9 @@
 </nav>
 
 <main>
-    <iframe id="viewer" name="viewer-frame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+    <div id="single-iframe-container">
+        <iframe id="viewer" name="viewer-frame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+    </div>
 </main>
 
 <script>
@@ -285,7 +328,8 @@
                 "https://bigdata-swoc.rid.go.th/",
                 "https://pwrc.thaiwater.net/",
                 "https://www.pagasa.dost.gov.ph/",
-                "https://www.force-13.com/"
+                "https://www.force-13.com/",
+                "https://www.titanjerry2.lnw.mn/"
             ],
             
             categories: [
@@ -327,15 +371,26 @@
                         { name: "FY Earth", url: "http://fyearth.nsmc.org.cn/fydq/thailand/cloudAltas/cloudAnalysis" },
                         { name: "Tropical Tidbits", url: "https://www.tropicaltidbits.com/" }
                     ]
+                },
+                {
+                    name: "กล้องวงจรปิด (แต่ละจังหวัด)",
+                    links: [
+                        { name: "นครศรีธรรมราช", url: "https://www.titanjerry2.lnw.mn/nstcctv_1.html" },
+                        { name: "อุดรธานี", url: "https://www.titanjerry2.lnw.mn/udncctv_1.html" },
+                        { name: "ชลบุรี", url: "https://www.titanjerry2.lnw.mn/cbicctv_1.html" },
+                        { name: "กรุงเทพ", url: "https://www.titanjerry2.lnw.mn/bkkcctv_1.html" },
+                                            ]
                 }
             ]
         };
 
         // --- DOM Elements ---
         const linkList = document.getElementById('linkList');
+        const singleIframeContainer = document.getElementById('single-iframe-container');
         const viewerFrame = document.getElementById('viewer');
         const datetimeSpan = document.getElementById('datetime');
         const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+
         let activeLinkElement = null;
         let draggedItem = null;
         let dragLine = document.createElement('div');
@@ -343,13 +398,22 @@
 
         // --- FUNCTIONS ---
         const isWhitelisted = (url) => data.whitelist.some(whitelistedUrl => url.startsWith(whitelistedUrl));
-        
+
         const setActiveLink = (element) => {
             if (activeLinkElement) {
                 activeLinkElement.classList.remove('active');
             }
             activeLinkElement = element;
             activeLinkElement.classList.add('active');
+        };
+
+        // ฟังก์ชันสำหรับจัดการการแสดงผล iframe
+        const updateIframeDisplay = (url) => {
+            if (url === "https://tropic.ssec.wisc.edu/real-time/tc_diurnal_cycle/tc_diurnal_cycle.php") {
+                singleIframeContainer.classList.add('centered-iframe-container');
+            } else {
+                singleIframeContainer.classList.remove('centered-iframe-container');
+            }
         };
 
         function buildMenu() {
@@ -364,7 +428,7 @@
                 catDiv.className = "category";
                 catDiv.textContent = cat.name;
                 catDiv.draggable = true;
-                
+
                 catDiv.addEventListener('click', (e) => {
                     catDiv.classList.toggle('active');
                     const linksWrapper = catDiv.nextElementSibling;
@@ -374,16 +438,14 @@
                         linksWrapper.style.maxHeight = "0";
                     }
                 });
-                
-                // --- Event Listeners สำหรับการลากและวางที่แก้ไขใหม่ ---
+
                 catDiv.addEventListener('dragstart', (e) => {
                     draggedItem = catContainer;
                     e.dataTransfer.effectAllowed = 'move';
                     setTimeout(() => {
                         draggedItem.classList.add('dragging');
                     }, 0);
-                    
-                    // เพิ่มเส้นแบ่งตำแหน่งเมื่อเริ่มลาก
+
                     linkList.appendChild(dragLine);
                 });
 
@@ -392,17 +454,15 @@
                         draggedItem.classList.remove('dragging');
                     }
                     draggedItem = null;
-                    // ลบเส้นแบ่งตำแหน่งเมื่อลากเสร็จ
                     if (dragLine.parentNode) {
                         dragLine.parentNode.removeChild(dragLine);
                     }
-                    // อัปเดตข้อมูลใน array ตามลำดับใหม่
                     updateCategoryOrder();
                 });
-                
+
                 const linksWrapper = document.createElement('div');
                 linksWrapper.className = "links-wrapper";
-                
+
                 catContainer.appendChild(catDiv);
                 catContainer.appendChild(linksWrapper);
                 linkList.appendChild(catContainer);
@@ -410,21 +470,22 @@
                 cat.links.forEach(link => {
                     const canEmbed = isWhitelisted(link.url);
                     const icon = canEmbed ? "🖼️" : "↗️";
-                    
+
                     const a = document.createElement('a');
                     a.className = 'nav-link';
                     a.innerHTML = `${icon} ${link.name}`;
-                    
+
                     a.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (canEmbed) {
                             viewerFrame.src = link.url;
                             setActiveLink(a);
+                            updateIframeDisplay(link.url);
                         } else {
                             window.open(link.url, '_blank');
                         }
                     });
-                    
+
                     linksWrapper.appendChild(a);
 
                     if (!firstEmbeddableLink && canEmbed) {
@@ -441,10 +502,10 @@
             if (firstEmbeddableLink) {
                 viewerFrame.src = firstEmbeddableLink.url;
                 setActiveLink(firstEmbeddableLink.linkElement);
+                updateIframeDisplay(firstEmbeddableLink.url);
             }
         }
-        
-        // --- Event Listener สำหรับการลากและวางแบบใหม่ ---
+
         linkList.addEventListener('dragover', (e) => {
             e.preventDefault();
             if (!draggedItem) return;
@@ -452,12 +513,10 @@
             const hoveredElement = e.target.closest('.category-container');
             const rect = hoveredElement ? hoveredElement.getBoundingClientRect() : linkList.getBoundingClientRect();
             const mouseY = e.clientY;
-            
-            // ตรวจสอบว่าเมาส์อยู่ครึ่งบนหรือครึ่งล่างของ element ที่ลากทับ
+
             const isAfter = mouseY > rect.top + rect.height / 2;
 
             if (hoveredElement) {
-                // คำนวณตำแหน่งของเส้นแบ่ง
                 if (isAfter) {
                     const nextElement = hoveredElement.nextElementSibling;
                     if (nextElement) {
@@ -469,7 +528,6 @@
                     dragLine.style.top = (rect.top - linkList.getBoundingClientRect().top) + 'px';
                 }
             } else {
-                 // ถ้าไม่มี element ให้วางที่ท้ายสุด
                 const lastElement = linkList.lastElementChild;
                 if (lastElement) {
                     dragLine.style.top = (lastElement.getBoundingClientRect().bottom - linkList.getBoundingClientRect().top) + 'px';
@@ -493,20 +551,16 @@
                     linkList.insertBefore(draggedItem, hoveredElement);
                 }
             } else if (!hoveredElement && draggedItem !== linkList.lastElementChild) {
-                // ถ้าลากไปวางในพื้นที่ว่างด้านล่าง
                 linkList.appendChild(draggedItem);
             }
 
-            // ลบเส้นแบ่งตำแหน่ง
             if (dragLine.parentNode) {
                 dragLine.parentNode.removeChild(dragLine);
             }
 
-            // อัปเดตข้อมูลใน array ตามลำดับใหม่
             updateCategoryOrder();
         });
 
-        // ฟังก์ชันสำหรับอัปเดตลำดับข้อมูลใน array
         function updateCategoryOrder() {
             const newOrder = Array.from(linkList.querySelectorAll('.category')).map(el => el.textContent);
             const newCategoriesData = newOrder.map(name => {
@@ -515,7 +569,6 @@
             data.categories = newCategoriesData;
         }
 
-        // ฟังก์ชันอัปเดตวันและเวลา
         function updateDateTime() {
             const now = new Date();
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' };
@@ -527,7 +580,7 @@
             const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
             localStorage.setItem('sidebar-collapsed', isCollapsed);
         });
-        
+
         const isSidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
         if (isSidebarCollapsed) {
             document.body.classList.add('sidebar-collapsed');
