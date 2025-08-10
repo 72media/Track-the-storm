@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ติดตามพายุใกล้ไทย (v3)</title>
+    <title>ติดตามพายุใกล้ไทย (v5)</title>
     <style>
         :root {
             --sidebar-width: 280px;
@@ -44,8 +44,9 @@
             grid-area: header;
             background-color: var(--bg-secondary);
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
+            padding: 0 20px;
             font-size: 18px;
             box-shadow: 0 2px 5px var(--shadow-color);
             z-index: 10;
@@ -53,10 +54,6 @@
         }
         
         #toggle-sidebar-btn {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
             background: none;
             border: 1px solid var(--text-secondary);
             color: var(--text-secondary);
@@ -71,6 +68,44 @@
             background-color: var(--accent-color);
             color: var(--text-primary);
             border-color: var(--accent-color);
+        }
+        
+        #facebook-btn {
+            display: flex;
+            align-items: center;
+            background-color: #3b5998;
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+            font-size: 14px;
+        }
+        #facebook-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+        }
+        #facebook-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+        }
+        #facebook-btn img {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+        }
+
+        #datetime {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+        
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         #sidebar {
@@ -106,6 +141,24 @@
         #linkList {
             overflow-y: auto;
             flex-grow: 1;
+            padding: 10px 0;
+            position: relative;
+        }
+        
+        .drag-line {
+            position: absolute;
+            height: 2px;
+            background-color: var(--accent-color);
+            left: 10px;
+            right: 10px;
+            z-index: 10;
+            pointer-events: none;
+            transition: top 0.1s ease-out;
+        }
+
+        .category-container {
+            position: relative;
+            margin: 5px 0;
         }
 
         .category {
@@ -115,12 +168,13 @@
             color: var(--category-color);
             font-size: 16px;
             text-transform: uppercase;
-            cursor: pointer;
+            cursor: grab;
             display: flex;
             justify-content: space-between;
             align-items: center;
             transition: background-color 0.2s;
             user-select: none;
+            border-bottom: 1px solid var(--border-color);
         }
         .category:hover {
             background-color: var(--bg-secondary);
@@ -136,7 +190,10 @@
         .category.active::after {
             content: '−';
         }
-
+        .category.dragging {
+            opacity: 0;
+        }
+        
         .links-wrapper {
             max-height: 0;
             overflow: hidden;
@@ -178,8 +235,17 @@
 <body>
 
 <header>
-    <button id="toggle-sidebar-btn" title="เปิด/ปิดเมนู">☰</button>
-    <span id="datetime"></span>
+    <div class="header-left">
+        <button id="toggle-sidebar-btn" title="เปิด/ปิดเมนู">☰</button>
+        <span id="datetime"></span>
+    </div>
+    <div class="header-right">
+        <!-- เพิ่มปุ่ม Facebook ที่นี่ -->
+        <a href="https://www.facebook.com/hs8tv" target="_blank" rel="noopener noreferrer" id="facebook-btn" title="Ramrome Weather Facebook">
+            <img src="https://i.ibb.co/s9fPg4Xr/facebook-logo-icon-181652.png" alt="Ramrome Weather Logo">
+            <span>Ramrome Weather</span>
+        </a>
+    </div>
 </header>
 
 <nav id="sidebar">
@@ -192,13 +258,6 @@
 </nav>
 
 <main>
-    <!--
-      The 'sandbox' attribute is used for security. We include 'allow-same-origin' to
-      allow some websites to function correctly inside the iframe, such as those that
-      require local storage access or scripts that interact with their own domain.
-      If you need higher security, you can remove 'allow-same-origin', but some sites
-      may not display properly.
-    -->
     <iframe id="viewer" name="viewer-frame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
 </main>
 
@@ -206,33 +265,34 @@
     document.addEventListener('DOMContentLoaded', () => {
         // --- DATA SOURCE ---
         const data = {
-            // URL ที่สามารถแสดงใน iframe ได้
-            // สำหรับ URL ที่ไม่สามารถฝังได้ ให้ใส่เป็นลิงก์ธรรมดาในเมนู แล้วโค้ดจะเปิดในแท็บใหม่แทน
             whitelist: [
                 "https://himawari8.nict.go.jp/",
-                "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/ghaz/gth_full.png",
+                "https://www.cpc.ncep.noaa.gov/",
                 "https://realearth.ssec.wisc.edu/",
-                "https://www.data.jma.go.jp/mscweb/data/himawari/sat_hrp.php",
+                "https://www.data.jma.go.jp/",
                 "https://zoom.earth/",
-                "https://meteologix.com/ph/model-charts/euro/thailand/precipitation-total",
-                "https://charts.ecmwf.int/products/medium-mslp-rain",
-                "http://www.sattmet.tmd.go.th/satmet/satellte_radar/sat_radar.html",
+                "https://meteologix.com/",
+                "https://charts.ecmwf.int/",
+                "http://www.sattmet.tmd.go.th/",
                 "https://www.tropicalstormrisk.com/",
-                "https://sharaku.eorc.jaxa.jp/GSMaP/",
-                "http://huahin.royalrain.go.th/WeatherData/imageHimawari_select.php",
-                "https://maps.weather.gov.hk/wxviewer/index.html?lang=en",
+                "https://sharaku.eorc.jaxa.jp/",
+                "http://huahin.royalrain.go.th/",
+                "https://maps.weather.gov.hk/",
                 "https://www.easterlywave.com/",
                 "https://www.ventusky.com/",
                 "https://tropic.ssec.wisc.edu/",
                 "https://riskmap.disaster.go.th/",
                 "https://bigdata-swoc.rid.go.th/",
                 "https://pwrc.thaiwater.net/",
-                "https://www.pagasa.dost.gov.ph/" // เพิ่มลิงก์ PAGASA ใหม่
+                "https://www.pagasa.dost.gov.ph/",
+                "https://www.force-13.com/"
             ],
+            
             categories: [
                 {
-                    name: "🖼️ เว็บไซต์ที่ดูในหน้าเว็บได้",
+                    name: "🖼️ สามารถดูในหน้าเว็บได้",
                     links: [
+                        { name: "SSEC TC Diurnal Cycle", url: "https://tropic.ssec.wisc.edu/real-time/tc_diurnal_cycle/tc_diurnal_cycle.php" },
                         { name: "Himawari 8 (NICT)", url: "https://himawari8.nict.go.jp/" },
                         { name: "NOAA GTH Full", url: "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/ghaz/gth_full.png" },
                         { name: "Real Earth", url: "https://realearth.ssec.wisc.edu/" },
@@ -241,41 +301,31 @@
                         { name: "GSMaP", url: "https://sharaku.eorc.jaxa.jp/GSMaP/" },
                         { name: "Himawari (หัวหิน)", url: "http://huahin.royalrain.go.th/WeatherData/imageHimawari_select.php" },
                         { name: "HK Weather Viewer", url: "https://maps.weather.gov.hk/wxviewer/index.html?lang=en" },
-                        { name: "แผนที่ภัยพิบัติ (Riskmap)", url: "https://riskmap.disaster.go.th/" }
-                    ]
-                },
-                {
-                    name: "🌊 พายุ / พยากรณ์",
-                    links: [
-                        { name: "PAGASA (ฟิลิปปินส์)", url: "https://www.pagasa.dost.gov.ph/" }, // แทนที่ลิงก์ Windy.com
-                        { name: "Tropical Tidbits", url: "https://www.tropicaltidbits.com/" },
+                        { name: "แผนที่ภัยพิบัติ (Riskmap)", url: "https://riskmap.disaster.go.th/" },
+                        { name: "PAGASA (ฟิลิปปินส์)", url: "https://www.pagasa.dost.gov.ph/" },
                         { name: "ECMWF Charts", url: "https://charts.ecmwf.int/products/medium-mslp-rain" },
                         { name: "Meteologix (Euro)", url: "https://meteologix.com/ph/model-charts/euro/thailand/precipitation-total" },
                         { name: "Tropical Storm Risk", url: "https://www.tropicalstormrisk.com/" },
+                        { name: "SSEC MIMIC-TC", url: "https://tropic.ssec.wisc.edu/real-time/mimtc/tc.shtml" },
+                        { name: "TMD Radar", url: "http://www.sattmet.tmd.go.th/satmet/satellte_radar/sat_radar.html" },
+                        { name: "ThaiWater Bigdata", url: "https://bigdata-swoc.rid.go.th/rain" },
+                        { name: "ThaiWater PWRC", url: "https://pwrc.thaiwater.net/" },
+                        { name: "SSEC Westpac Satellite Movie", url: "https://tropic.ssec.wisc.edu/real-time/westpac/movies/gmsirbbm/gmsirbbm_loop.html" },
+                        { name: "Ventusky", url: "https://www.ventusky.com/?p=16.7;115.8;4&l=satellite" },
+                        { name: "Easterlywave", url: "https://www.easterlywave.com/typhoon/" },
+                        { name: "Force 13 Satellite", url: "https://www.force-13.com/satellite" }
+                    ]
+                },
+                {
+                    name: "ต้องเปิดในแท็บใหม่ ↗️",
+                    links: [
+                        { name: "Cyclonicwx NWPAC", url: "https://cyclonicwx.com/data/sat/gifs/nwpac_rgb.gif" },
                         { name: "Weather Nerds", url: "https://www.weathernerds.org/satellite/?initsatsrc=On&initsatname=Himawari" },
                         { name: "Digital Typhoon", url: "http://agora.ex.nii.ac.jp/digital-typhoon/" },
                         { name: "JTWC", url: "https://www.metoc.navy.mil/jtwc/jtwc.html" },
-                        { name: "Facebook HS8TV", url: "https://www.facebook.com/hs8tv" },
                         { name: "ThaiWater Storm", url: "https://nationalthaiwater.onwr.go.th/storm" },
-                        { name: "Easterlywave", url: "https://www.easterlywave.com/typhoon/" },
-                        { name: "SSEC MIMIC-TC", url: "https://tropic.ssec.wisc.edu/real-time/mimtc/tc.shtml" }
-                    ]
-                },
-                {
-                    name: "📡 เรดาร์ฝน / สภาพอากาศ",
-                    links: [
-                        { name: "TMD Radar", url: "http://www.sattmet.tmd.go.th/satmet/satellte_radar/sat_radar.html" },
                         { name: "FY Earth", url: "http://fyearth.nsmc.org.cn/fydq/thailand/cloudAltas/cloudAnalysis" },
-                        { name: "ThaiWater Bigdata", url: "https://bigdata-swoc.rid.go.th/rain" },
-                        { name: "ThaiWater PWRC", url: "https://pwrc.thaiwater.net/" }
-                    ]
-                },
-                {
-                    name: "🛰️ ดูภาพจากดาวเทียม",
-                    links: [
-                        // ลิงก์นี้จะเปิดในแท็บใหม่ เพราะไม่สามารถฝังใน iframe ได้
-                        { name: "Cyclonicwx NWPAC", url: "https://cyclonicwx.com/data/sat/gifs/nwpac_rgb.gif" }, 
-                        { name: "Ventusky", url: "https://www.ventusky.com/?p=16.7;115.8;4&l=satellite" }
+                        { name: "Tropical Tidbits", url: "https://www.tropicaltidbits.com/" }
                     ]
                 }
             ]
@@ -287,12 +337,13 @@
         const datetimeSpan = document.getElementById('datetime');
         const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
         let activeLinkElement = null;
+        let draggedItem = null;
+        let dragLine = document.createElement('div');
+        dragLine.className = 'drag-line';
 
         // --- FUNCTIONS ---
-        // ฟังก์ชันตรวจสอบว่า URL อยู่ในรายการที่อนุญาตให้แสดงใน iframe หรือไม่
         const isWhitelisted = (url) => data.whitelist.some(whitelistedUrl => url.startsWith(whitelistedUrl));
         
-        // ฟังก์ชันตั้งค่าลิงก์ที่ถูกเลือกให้เป็น active
         const setActiveLink = (element) => {
             if (activeLinkElement) {
                 activeLinkElement.classList.remove('active');
@@ -301,21 +352,22 @@
             activeLinkElement.classList.add('active');
         };
 
-        // ฟังก์ชันสร้างเมนู
         function buildMenu() {
             linkList.innerHTML = "";
             let firstEmbeddableLink = null;
 
             data.categories.forEach((cat, index) => {
+                const catContainer = document.createElement('div');
+                catContainer.className = "category-container";
+
                 const catDiv = document.createElement('div');
                 catDiv.className = "category";
                 catDiv.textContent = cat.name;
+                catDiv.draggable = true;
                 
-                const linksWrapper = document.createElement('div');
-                linksWrapper.className = "links-wrapper";
-                
-                catDiv.addEventListener('click', () => {
+                catDiv.addEventListener('click', (e) => {
                     catDiv.classList.toggle('active');
+                    const linksWrapper = catDiv.nextElementSibling;
                     if (catDiv.classList.contains('active')) {
                         linksWrapper.style.maxHeight = linksWrapper.scrollHeight + "px";
                     } else {
@@ -323,8 +375,37 @@
                     }
                 });
                 
-                linkList.appendChild(catDiv);
-                linkList.appendChild(linksWrapper);
+                // --- Event Listeners สำหรับการลากและวางที่แก้ไขใหม่ ---
+                catDiv.addEventListener('dragstart', (e) => {
+                    draggedItem = catContainer;
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => {
+                        draggedItem.classList.add('dragging');
+                    }, 0);
+                    
+                    // เพิ่มเส้นแบ่งตำแหน่งเมื่อเริ่มลาก
+                    linkList.appendChild(dragLine);
+                });
+
+                catDiv.addEventListener('dragend', () => {
+                    if (draggedItem) {
+                        draggedItem.classList.remove('dragging');
+                    }
+                    draggedItem = null;
+                    // ลบเส้นแบ่งตำแหน่งเมื่อลากเสร็จ
+                    if (dragLine.parentNode) {
+                        dragLine.parentNode.removeChild(dragLine);
+                    }
+                    // อัปเดตข้อมูลใน array ตามลำดับใหม่
+                    updateCategoryOrder();
+                });
+                
+                const linksWrapper = document.createElement('div');
+                linksWrapper.className = "links-wrapper";
+                
+                catContainer.appendChild(catDiv);
+                catContainer.appendChild(linksWrapper);
+                linkList.appendChild(catContainer);
 
                 cat.links.forEach(link => {
                     const canEmbed = isWhitelisted(link.url);
@@ -336,7 +417,6 @@
                     
                     a.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        // หากลิงก์อยู่ใน whitelist ให้แสดงใน iframe แต่ถ้าไม่อยู่ ให้เปิดในแท็บใหม่
                         if (canEmbed) {
                             viewerFrame.src = link.url;
                             setActiveLink(a);
@@ -352,18 +432,87 @@
                     }
                 });
 
-                // ขยายเมนูหมวดหมู่แรกโดยอัตโนมัติ
                 if (index === 0) {
                     catDiv.classList.add('active');
                     linksWrapper.style.maxHeight = linksWrapper.scrollHeight + "px";
                 }
             });
 
-            // ตั้งค่า iframe เริ่มต้นเป็นลิงก์แรกที่สามารถฝังได้
             if (firstEmbeddableLink) {
                 viewerFrame.src = firstEmbeddableLink.url;
                 setActiveLink(firstEmbeddableLink.linkElement);
             }
+        }
+        
+        // --- Event Listener สำหรับการลากและวางแบบใหม่ ---
+        linkList.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!draggedItem) return;
+
+            const hoveredElement = e.target.closest('.category-container');
+            const rect = hoveredElement ? hoveredElement.getBoundingClientRect() : linkList.getBoundingClientRect();
+            const mouseY = e.clientY;
+            
+            // ตรวจสอบว่าเมาส์อยู่ครึ่งบนหรือครึ่งล่างของ element ที่ลากทับ
+            const isAfter = mouseY > rect.top + rect.height / 2;
+
+            if (hoveredElement) {
+                // คำนวณตำแหน่งของเส้นแบ่ง
+                if (isAfter) {
+                    const nextElement = hoveredElement.nextElementSibling;
+                    if (nextElement) {
+                        dragLine.style.top = (nextElement.getBoundingClientRect().top - linkList.getBoundingClientRect().top) + 'px';
+                    } else {
+                        dragLine.style.top = (hoveredElement.getBoundingClientRect().bottom - linkList.getBoundingClientRect().top) + 'px';
+                    }
+                } else {
+                    dragLine.style.top = (rect.top - linkList.getBoundingClientRect().top) + 'px';
+                }
+            } else {
+                 // ถ้าไม่มี element ให้วางที่ท้ายสุด
+                const lastElement = linkList.lastElementChild;
+                if (lastElement) {
+                    dragLine.style.top = (lastElement.getBoundingClientRect().bottom - linkList.getBoundingClientRect().top) + 'px';
+                }
+            }
+        });
+
+        linkList.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!draggedItem) return;
+
+            const hoveredElement = e.target.closest('.category-container');
+            if (hoveredElement && hoveredElement !== draggedItem) {
+                const rect = hoveredElement.getBoundingClientRect();
+                const mouseY = e.clientY;
+                const isAfter = mouseY > rect.top + rect.height / 2;
+
+                if (isAfter) {
+                    linkList.insertBefore(draggedItem, hoveredElement.nextSibling);
+                } else {
+                    linkList.insertBefore(draggedItem, hoveredElement);
+                }
+            } else if (!hoveredElement && draggedItem !== linkList.lastElementChild) {
+                // ถ้าลากไปวางในพื้นที่ว่างด้านล่าง
+                linkList.appendChild(draggedItem);
+            }
+
+            // ลบเส้นแบ่งตำแหน่ง
+            if (dragLine.parentNode) {
+                dragLine.parentNode.removeChild(dragLine);
+            }
+
+            // อัปเดตข้อมูลใน array ตามลำดับใหม่
+            updateCategoryOrder();
+        });
+
+        // ฟังก์ชันสำหรับอัปเดตลำดับข้อมูลใน array
+        function updateCategoryOrder() {
+            const newOrder = Array.from(linkList.querySelectorAll('.category')).map(el => el.textContent);
+            const newCategoriesData = newOrder.map(name => {
+                return data.categories.find(cat => cat.name === name);
+            });
+            data.categories = newCategoriesData;
         }
 
         // ฟังก์ชันอัปเดตวันและเวลา
