@@ -341,7 +341,7 @@
                         { name: "NOAA GTH Full", url: "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/ghaz/gth_full.png" },
                         { name: "Real Earth", url: "https://realearth.ssec.wisc.edu/" },
                         { name: "JMA Himawari", url: "https://www.data.jma.go.jp/mscweb/data/himawari/sat_hrp.php" },
-                        { name: "Zoom Earth", url: "https://zoom.earth/#view=12.8,118.6,5z" },
+                        { name: "Zoom Earth", url: "https://zoom.earth/#view=12.8;118.6;5z" },
                         { name: "GSMaP", url: "https://sharaku.eorc.jaxa.jp/GSMaP/" },
                         { name: "HK Weather Viewer", url: "https://maps.weather.gov.hk/wxviewer/index.html?lang=en" },
                         { name: "แผนที่ภัยพิบัติ (Riskmap)", url: "https://riskmap.disaster.go.th/" },
@@ -349,7 +349,7 @@
                         { name: "ECMWF Charts", url: "https://charts.ecmwf.int/products/medium-mslp-rain" },
                         { name: "Tropical Storm Risk", url: "https://www.tropicalstormrisk.com/" },
                         { name: "SSEC MIMIC-TC", url: "https://tropic.ssec.wisc.edu/real-time/mimtc/tc.shtml" },
-                        { name: "TMD Radar", url: "http://www.sattmet.tmd.go.th/satmet/mergesat.html" },
+                        // ลบ TMD Radar ออกจากตรงนี้
                         { name: "ThaiWater Bigdata", url: "https://bigdata-swoc.rid.go.th/rain" },
                         { name: "ThaiWater PWRC", url: "https://pwrc.thaiwater.net/" },
                         { name: "SSEC Westpac Satellite Movie", url: "https://tropic.ssec.wisc.edu/real-time/westpac/movies/gmsirbbm/gmsirbbm_loop.html" },
@@ -361,6 +361,8 @@
                 {
                     name: "ต้องเปิดในแท็บใหม่ ↗️",
                     links: [
+                        // ย้าย TMD Radar มาไว้ตรงนี้
+                        { name: "TMD Radar", url: "http://www.sattmet.tmd.go.th/satmet/mergesat.html" },
                         { name: "Cyclonicwx NWPAC", url: "https://cyclonicwx.com/data/sat/gifs/nwpac_rgb.gif" },
                         { name: "Weather Nerds", url: "https://www.weathernerds.org/satellite/?initsatsrc=On&initsatname=Himawari" },
                         { name: "Digital Typhoon", url: "http://agora.ex.nii.ac.jp/digital-typhoon/" },
@@ -468,7 +470,10 @@
                 linkList.appendChild(catContainer);
 
                 cat.links.forEach(link => {
-                    const canEmbed = isWhitelisted(link.url);
+                    // ตรวจสอบว่าลิงก์นี้เป็น TMD Radar หรือไม่
+                    const isTmdRadar = link.url === "http://www.sattmet.tmd.go.th/satmet/mergesat.html";
+                    // ลิงก์ TMD Radar ถูกย้ายไปที่หมวด 'เปิดในแท็บใหม่' จึงต้องตั้งค่า canEmbed เป็น false
+                    const canEmbed = !isTmdRadar && isWhitelisted(link.url);
                     const icon = canEmbed ? "🖼️" : "↗️";
 
                     const a = document.createElement('a');
