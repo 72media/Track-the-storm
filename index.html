@@ -3,599 +3,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ติดตามพายุใกล้ไทย (v13)</title>
+    <title>ระบบติดตามพายุ · NASA GIBS + Ventusky + Windy (แก้ satellite layer)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --sidebar-width: 280px;
-            --header-height: 60px;
-            --bg-primary: #1e1e2f;
-            --bg-secondary: #27293d;
-            --bg-sidebar: #202233;
-            --text-primary: #ffffff;
-            --text-secondary: #cfd8dc;
-            --accent-color: #1abc9c;
-            --warning-color: #e74c3c;
-            --category-color: #ffcc66;
-            --shadow-color: rgba(0, 0, 0, 0.3);
-            --border-color: rgba(255, 255, 255, 0.05);
-        }
-
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            height: 100vh;
-            overflow: hidden;
-            display: grid;
-            grid-template-columns: var(--sidebar-width) 1fr;
-            grid-template-rows: var(--header-height) 1fr;
-            grid-template-areas:
-                "sidebar header"
-                "sidebar content";
-            transition: grid-template-columns 0.3s ease-in-out;
-        }
-
-        body.sidebar-collapsed {
-            grid-template-columns: 0 1fr;
-        }
-
-        header {
-            grid-area: header;
-            background-color: var(--bg-secondary);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            font-size: 18px;
-            box-shadow: 0 2px 5px var(--shadow-color);
-            z-index: 10;
-            position: relative;
-        }
-
-        #toggle-sidebar-btn {
-            background: none;
-            border: 1px solid var(--text-secondary);
-            color: var(--text-secondary);
-            font-size: 20px;
-            width: 35px;
-            height: 35px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        #toggle-sidebar-btn:hover {
-            background-color: var(--accent-color);
-            color: var(--text-primary);
-            border-color: var(--accent-color);
-        }
-
-        #facebook-btn {
-            display: flex;
-            align-items: center;
-            background-color: #3b5998;
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-weight: bold;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
-            font-size: 14px;
-        }
-
-        #facebook-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
-        }
-
-        #facebook-btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(0, 0, 0, 0.2);
-        }
-
-        #facebook-btn img {
-            width: 20px;
-            height: 20px;
-            margin-right: 8px;
-        }
-        
-        .header-center {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-grow: 1;
-            justify-content: center;
-        }
-
-        #datetime {
-            font-size: 16px;
-            color: var(--text-secondary);
-        }
-
-        #sidebar {
-            grid-area: sidebar;
-            background-color: var(--bg-sidebar);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        #tmd-warning-container {
-            padding: 15px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        #tmd-warning-container a {
-            display: block;
-            background-color: var(--warning-color);
-            color: var(--text-primary);
-            text-decoration: none;
-            text-align: center;
-            padding: 12px;
-            border-radius: 5px;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-
-        #tmd-warning-container a:hover {
-            background-color: #c0392b;
-        }
-
-        #linkList {
-            overflow-y: auto;
-            flex-grow: 1;
-            padding: 10px 0;
-            position: relative;
-        }
-
-        .drag-line {
-            position: absolute;
-            height: 2px;
-            background-color: var(--accent-color);
-            left: 10px;
-            right: 10px;
-            z-index: 10;
-            pointer-events: none;
-            transition: top 0.1s ease-out;
-        }
-
-        .category-container {
-            position: relative;
-            margin: 5px 0;
-        }
-
-        .category {
-            padding: 15px 20px;
-            font-weight: bold;
-            background-color: #181a29;
-            color: var(--category-color);
-            font-size: 16px;
-            text-transform: uppercase;
-            cursor: grab;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background-color 0.2s;
-            user-select: none;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .category:hover {
-            background-color: var(--bg-secondary);
-        }
-
-        .category::after {
-            content: '+';
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--text-secondary);
-            transition: transform 0.3s ease-out;
-        }
-
-        .category.active::after {
-            content: '−';
-        }
-
-        .category.dragging {
-            opacity: 0;
-        }
-
-        .links-wrapper {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease-in-out;
-        }
-
-        #sidebar a.nav-link {
-            display: block;
-            padding: 12px 20px 12px 30px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            border-bottom: 1px solid var(--border-color);
-            transition: background-color 0.2s, color 0.2s;
-            font-size: 14px;
-            cursor: pointer;
-            white-space: nowrap;
-            background-color: var(--bg-sidebar);
-        }
-
-        #sidebar a.nav-link:hover,
-        #sidebar a.nav-link.active {
-            background-color: var(--accent-color);
-            color: var(--text-primary);
-        }
-
-        main {
-            grid-area: content;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-primary);
-            overflow: hidden;
-            position: relative;
-            padding: 0; /* เปลี่ยนจาก padding 20px เป็น 0 */
-        }
-
-        /* container สำหรับ iframe เดียว */
-        #single-iframe-container {
-            flex-grow: 1;
-            display: flex;
-            background-color: var(--text-primary);
-        }
-
-        #viewer {
-            flex-grow: 1;
-            border: none;
-            width: 100%;
-            height: 100%;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* CSS สำหรับขยาย iframe เฉพาะรายการ SSEC TC Diurnal Cycle ให้เป็นกึ่งกลาง */
-        .centered-iframe-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .centered-iframe-container iframe {
-            width: 900px;
-            height: 600px;
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Sarabun',sans-serif; overflow:hidden; background:#0b1a22; color:#f0f3f8; }
+        #map { height:100vh; width:100%; z-index:1; }
+        .thai-datetime-bar { position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:1100; background:rgba(0,0,0,0.8); backdrop-filter:blur(12px); border-radius:48px; padding:8px 20px; border:1px solid rgba(255,215,100,0.6); box-shadow:0 4px 18px rgba(0,0,0,0.4); font-weight:600; font-size:0.9rem; white-space:nowrap; pointer-events:none; color:#fff7e8; text-shadow:0 0 4px #ffb347; }
+        .toggle-panel-btn { position:fixed; bottom:20px; left:20px; z-index:1200; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); border:1px solid #ffbc6e; border-radius:40px; width:44px; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#ffdd99; font-size:22px; transition:0.2s; box-shadow:0 4px 12px rgba(0,0,0,0.4); }
+        .toggle-panel-btn:hover { background:#1f4e5e; transform:scale(1.02); }
+        .storm-master-panel { position:absolute; top:16px; left:72px; width:380px; z-index:1000; background:rgba(8,16,26,0.96); backdrop-filter:blur(14px); border-radius:28px; border:1px solid rgba(72,187,200,0.5); overflow:hidden; transition:0.2s ease; }
+        .storm-master-panel.hidden-panel { display: none; }
+        .search-section { background:linear-gradient(105deg,#06212e,#033b46); padding:14px 16px; border-bottom:1px solid #2c9caa; }
+        .search-title { display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:700; font-size:0.9rem; color:#c0f2ff; }
+        .search-input-group { display:flex; gap:8px; flex-wrap:wrap; }
+        .search-input-custom { flex:2; background:#10262e; border:1px solid #3c8f9c; padding:10px 12px; border-radius:48px; color:white; font-weight:500; outline:none; font-size:14px; }
+        .search-input-custom:focus { border-color:#ffbc6e; background:#06212b; }
+        .action-btn { background:#00b8c9; border:none; color:white; padding:8px 16px; border-radius:40px; font-weight:bold; cursor:pointer; transition:0.2s; font-size:13px; display:inline-flex; align-items:center; gap:6px; }
+        .action-btn:hover { background:#008b99; transform:scale(0.97); }
+        .reset-btn { background:#e67e5c; }
+        .reset-btn:hover { background:#c4451b; }
+        .external-quick { display:flex; gap:12px; margin-top:12px; font-size:0.7rem; flex-wrap:wrap; }
+        .external-link { color:#bbeef0; text-decoration:none; border-bottom:1px dashed #4aa; cursor:pointer; background:rgba(0,0,0,0.3); padding:3px 10px; border-radius:40px; }
+        .satellite-controls { background:#0a2a33; padding:10px 16px; border-top:1px solid #2c9caa; border-bottom:1px solid #2c9caa; margin-bottom:8px; }
+        .sat-title { font-size:0.75rem; font-weight:bold; margin-bottom:8px; display:flex; align-items:center; gap:6px; color:#6dd5ed; }
+        .sat-select-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+        .sat-select-row select { flex:2; background:#10262e; border:1px solid #3c8f9c; padding:6px 8px; border-radius:24px; color:white; font-size:12px; outline:none; }
+        .opacity-row { display:flex; align-items:center; gap:12px; margin-top:6px; }
+        .opacity-row label { font-size:0.7rem; display:flex; align-items:center; gap:5px; }
+        input[type="range"] { flex:2; height:4px; -webkit-appearance:none; background:#2c9caa; border-radius:5px; }
+        input[type="range"]:focus { outline:none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#ffbc6e; cursor:pointer; }
+        .sat-status { font-size:0.7rem; color:#ffbc6e; text-align:right; margin-top:4px; }
+        .storms-list-area { max-height:45vh; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:14px; }
+        .storm-card { background:rgba(0,0,0,0.68); border-radius:24px; padding:12px 14px; border-left:6px solid; transition:0.2s; backdrop-filter:blur(4px); }
+        .storm-title { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; margin-bottom:10px; }
+        .storm-name-id { font-weight:800; font-size:1rem; text-shadow:0 0 6px currentColor; background:rgba(0,0,0,0.55); padding:2px 10px; border-radius:20px; display:inline-block; }
+        .toggle-vis { display:flex; align-items:center; gap:6px; background:#1f3e48; padding:4px 12px; border-radius:32px; font-size:0.7rem; cursor:pointer; }
+        .toggle-vis input { width:16px; height:16px; accent-color:#2dd4bf; cursor:pointer; }
+        .storm-detail-row { display:flex; justify-content:space-between; font-size:0.73rem; margin:5px 0; color:#e2eef7; border-bottom:1px dotted rgba(255,255,255,0.15); padding-bottom:3px; }
+        .storm-wind-highlight { color:#ffbc6e; font-weight:bold; }
+        .storm-pressure { color:#8bcbff; }
+        .remove-storm-btn { background:none; border:none; color:#ffaa8c; font-size:11px; cursor:pointer; margin-top:6px; text-align:right; width:100%; }
+        .timeline-item { border-left:2px solid; padding-left:8px; margin-bottom:5px; cursor:pointer; transition:0.1s; border-radius:6px; }
+        .timeline-item:hover { background:rgba(255,255,255,0.1); transform:translateX(2px); }
+        .empty-message { text-align:center; opacity:0.7; padding:24px; font-style:italic; }
+        .storms-list-area::-webkit-scrollbar { width:4px; }
+        .storms-list-area::-webkit-scrollbar-track { background:#1e3a44; border-radius:4px; }
+        .storms-list-area::-webkit-scrollbar-thumb { background:#48d1cc; border-radius:4px; }
+        .storm-icon-svg { font-size:34px; animation:drift 3s infinite ease; filter:drop-shadow(0 0 5px black); }
+        @keyframes drift { 0% { transform:rotate(0deg) scale(1); } 50% { transform:rotate(-8deg) scale(1.08); } 100% { transform:rotate(0deg) scale(1); } }
+        .storm-label-custom { background:rgba(0,0,0,0.85) !important; color:#ffffff !important; font-weight:bold !important; font-size:13px !important; padding:5px 14px !important; border-radius:32px !important; border:1.5px solid #ffd966 !important; box-shadow:0 0 12px rgba(0,0,0,0.6) !important; text-shadow:1px 1px 0px #000000 !important; white-space:nowrap; }
+        .iframe-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.94); z-index:2000; justify-content:center; align-items:center; }
+        .iframe-wrapper { width:92vw; height:88vh; background:#121212; border-radius:24px; overflow:hidden; border:1px solid #3aa; }
+        .iframe-header { background:#1f2f38; padding:8px 16px; display:flex; justify-content:space-between; align-items:center; }
+        .iframe-close { background:#d9534f; padding:4px 14px; border-radius:30px; cursor:pointer; font-weight:bold; }
+        iframe { width:100%; height:calc(100% - 44px); border:none; }
+        .custom-popup .leaflet-popup-content-wrapper { background: #1a1f2a; color: #f0f3f8; border-radius: 16px; border-left: 4px solid #ff6666; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+        .custom-popup .leaflet-popup-tip { background: #1a1f2a; }
+        .custom-popup .leaflet-popup-content { margin: 12px 18px; font-family: 'Sarabun', sans-serif; font-size: 13px; }
     </style>
 </head>
 <body>
-
-<header>
-    <!-- ปุ่มสำหรับเปิด/ปิด Sidebar -->
-    <div>
-        <button id="toggle-sidebar-btn" title="เปิด/ปิดเมนู">☰</button>
+<div class="thai-datetime-bar"><span id="liveThaiTime">กำลังโหลด...</span></div>
+<div class="toggle-panel-btn" id="togglePanelBtn"><i class="fas fa-bars"></i></div>
+<div class="storm-master-panel" id="stormMasterPanel">
+    <div class="search-section">
+        <div class="search-title"><i class="fas fa-cyclone"></i> <span>🌀 ระบบติดตามพายุสากล (ทุกปี)</span></div>
+        <div class="search-input-group">
+            <input type="text" id="stormIdInput" class="search-input-custom" placeholder="รหัสพายุ เช่น 202606" value="202606">
+            <button class="action-btn" id="addStormBtn"><i class="fas fa-plus"></i> เพิ่ม</button>
+            <button class="action-btn reset-btn" id="resetAllBtn"><i class="fas fa-trash-alt"></i> ล้าง</button>
+        </div>
+        <div class="external-quick">
+            <span class="external-link" onclick="openIframe('https://agora.ex.nii.ac.jp/cgi-bin/dt/search_name2.pl?lang=en&basin=wnp')">📡 Digital Typhoon</span>
+            <span class="external-link" onclick="openIframe('https://data.dapiya.top/AI-VIS/')">🤖 AI-VIS</span>
+            <span class="external-link" onclick="openIframe('https://embed.ventusky.com/?p=15.2;119.5;5&l=wind-10m&w=soft')">🌍 Ventusky</span>
+            <span class="external-link" onclick="openIframe('https://embed.windy.com/embed2.html?lat=15.2&lon=119.5&zoom=5&level=surface&overlay=wind&menu=true&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&detailLat=15.2&detailLon=119.5&metricWind=default&metricTemp=default&radarRange=-1')">🌬️ Windy</span>
+        </div>
     </div>
-
-    <!-- ส่วนกลางที่รวมวันที่ -->
-    <div class="header-center">
-        <span id="datetime"></span>
+    <div class="satellite-controls">
+        <div class="sat-title"><i class="fas fa-satellite-dish"></i> ภาพถ่ายดาวเทียม (NASA GIBS)</div>
+        <div class="sat-select-row">
+            <select id="satelliteLayerSelect">
+                <option value="MODIS_Terra_CorrectedReflectance_TrueColor">🌍 MODIS Terra (สีจริง)</option>
+                <option value="MODIS_Aqua_CorrectedReflectance_TrueColor">💧 MODIS Aqua (สีจริง)</option>
+                <option value="Himawari_AHI_Band13_Clean_Infrared" selected>🇯🇵 Himawari-8 (อินฟราเรด)</option>
+                <option value="Himawari_AHI_CorrectedReflectance_TrueColor">🇯🇵 Himawari-8 (สีจริง GeoColor)</option>
+            </select>
+            <button id="applySatelliteBtn" class="action-btn" style="background:#2c5f6e; padding:6px 12px;"><i class="fas fa-cloud-sun"></i> ใช้</button>
+        </div>
+        <div class="opacity-row">
+            <label><i class="fas fa-eye"></i> ความโปร่งใส</label>
+            <input type="range" id="opacitySlider" min="0" max="100" value="89">
+            <span id="opacityValue" style="font-size:12px; width:40px;">89%</span>
+        </div>
+        <div class="sat-status" id="satStatusMsg">🟢 พร้อมใช้งาน | กำลังโหลดภาพถ่ายดาวเทียม...</div>
     </div>
-
-    <!-- ส่วนขวาสำหรับปุ่ม Facebook -->
-    <div>
-        <a href="https://www.facebook.com/hs8tv" target="_blank" rel="noopener noreferrer" id="facebook-btn" title="Ramrome Weather Facebook">
-            <img src="https://i.ibb.co/s9fPg4Xr/facebook-logo-icon-181652.png" alt="Ramrome Weather Logo">
-            <span>Ramrome Weather</span>
-        </a>
+    <div class="satellite-controls" style="border-top:1px solid #1c6e7a;">
+        <div class="sat-title"><i class="fas fa-route"></i> เส้นทางพยากรณ์ (typhoon2000.ph)</div>
+        <div class="sat-select-row" style="margin-bottom:6px;">
+            <input type="text" id="forecastNameInput" class="search-input-custom" placeholder="ชื่อพายุ เช่น JANGMI" value="JANGMI" style="text-transform:uppercase;">
+            <button id="loadForecastBtn" class="action-btn" style="background:#1a6e5a; padding:6px 12px;"><i class="fas fa-map-marked-alt"></i> โหลด</button>
+            <button id="clearForecastBtn" class="action-btn reset-btn" style="padding:6px 12px;"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="forecastStatusMsg" style="font-size:0.7rem; color:#88ddcc; margin-top:2px; min-height:16px;"></div>
     </div>
-</header>
+    <div class="storms-list-area" id="stormListPanel"><div class="empty-message">🔍 ป้อนรหัสพายุ (เช่น 202606)<br>✨ ระบบโหลดชื่อสากลจากฐานข้อมูลปีนั้นๆ อัตโนมัติ</div></div>
+</div>
+<div id="map"></div>
+<div id="iframeModal" class="iframe-overlay"><div class="iframe-wrapper"><div class="iframe-header"><span>แหล่งข้อมูลเสริม</span><span class="iframe-close" onclick="closeIframe()">✕ ปิด</span></div><iframe id="dynamicIframe" src="about:blank"></iframe></div></div>
 
-<nav id="sidebar">
-    <div id="tmd-warning-container">
-        <a href="https://tmd.go.th/warning-and-events/warning-storm" target="_blank" rel="noopener noreferrer">
-            ประกาศเตือนจากกรมอุตุไทย
-        </a>
-    </div>
-    <div id="linkList"></div>
-</nav>
-
-<main>
-    <div id="single-iframe-container">
-        <iframe id="viewer" name="viewer-frame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
-    </div>
-</main>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- DATA SOURCE ---
-        const data = {
-            whitelist: [
-                "https://himawari8.nict.go.jp/",
-                "https://www.cpc.ncep.noaa.gov/",
-                "https://realearth.ssec.wisc.edu/",
-                "https://www.data.jma.go.jp/",
-                "https://zoom.earth/",
-                "https://meteologix.com/",
-                "https://charts.ecmwf.int/",
-                "http://www.sattmet.tmd.go.th/",
-                "https://www.tropicalstormrisk.com/",
-                "https://sharaku.eorc.jaxa.jp/",
-                "http://huahin.royalrain.go.th/",
-                "https://maps.weather.gov.hk/",
-                "https://www.easterlywave.com/",
-                "https://www.ventusky.com/",
-                "https://tropic.ssec.wisc.edu/",
-                "https://riskmap.disaster.go.th/",
-                "https://bigdata-swoc.rid.go.th/",
-                "https://pwrc.thaiwater.net/",
-                "https://www.pagasa.dost.gov.ph/",
-                "https://www.force-13.com/",
-                "https://www.titanjerry2.lnw.mn/"
-            ],
-            
-            categories: [
-                {
-                    name: "🖼️ สามารถดูในหน้าเว็บได้",
-                    links: [
-                        { name: "SSEC TC Diurnal Cycle", url: "https://tropic.ssec.wisc.edu/real-time/tc_diurnal_cycle/tc_diurnal_cycle.php" },
-                        { name: "Himawari 8 (NICT)", url: "https://himawari8.nict.go.jp/" },
-                        { name: "NOAA GTH Full", url: "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/ghaz/gth_full.png" },
-                        { name: "Real Earth", url: "https://realearth.ssec.wisc.edu/" },
-                        { name: "JMA Himawari", url: "https://www.data.jma.go.jp/mscweb/data/himawari/sat_hrp.php" },
-                        { name: "Zoom Earth", url: "https://zoom.earth/#view=12.8;118.6;5z" },
-                        { name: "GSMaP", url: "https://sharaku.eorc.jaxa.jp/GSMaP/" },
-                        { name: "HK Weather Viewer", url: "https://maps.weather.gov.hk/wxviewer/index.html?lang=en" },
-                        { name: "แผนที่ภัยพิบัติ (Riskmap)", url: "https://riskmap.disaster.go.th/" },
-                        { name: "PAGASA (ฟิลิปปินส์)", url: "https://www.pagasa.dost.gov.ph/" },
-                        { name: "ECMWF Charts", url: "https://charts.ecmwf.int/products/medium-mslp-rain" },
-                        { name: "Tropical Storm Risk", url: "https://www.tropicalstormrisk.com/" },
-                        { name: "SSEC MIMIC-TC", url: "https://tropic.ssec.wisc.edu/real-time/mimtc/tc.shtml" },
-                        // ลบ TMD Radar ออกจากตรงนี้
-                        { name: "ThaiWater Bigdata", url: "https://bigdata-swoc.rid.go.th/rain" },
-                        { name: "ThaiWater PWRC", url: "https://pwrc.thaiwater.net/" },
-                        { name: "SSEC Westpac Satellite Movie", url: "https://tropic.ssec.wisc.edu/real-time/westpac/movies/gmsirbbm/gmsirbbm_loop.html" },
-                        { name: "Ventusky", url: "https://www.ventusky.com/?p=16.7;115.8;4&l=satellite" },
-                        { name: "Easterlywave", url: "https://www.easterlywave.com/typhoon/" },
-                        { name: "Force 13 Satellite", url: "https://www.force-13.com/satellite" }
-                    ]
-                },
-                {
-                    name: "ต้องเปิดในแท็บใหม่ ↗️",
-                    links: [
-                        // ย้าย TMD Radar มาไว้ตรงนี้
-                        { name: "TMD Radar", url: "http://www.sattmet.tmd.go.th/satmet/mergesat.html" },
-                        { name: "Cyclonicwx NWPAC", url: "https://cyclonicwx.com/data/sat/gifs/nwpac_rgb.gif" },
-                        { name: "Weather Nerds", url: "https://www.weathernerds.org/satellite/?initsatsrc=On&initsatname=Himawari" },
-                        { name: "Digital Typhoon", url: "http://agora.ex.nii.ac.jp/digital-typhoon/" },
-                        { name: "JTWC", url: "https://www.metoc.navy.mil/jtwc/jtwc.html" },
-                        { name: "ThaiWater Storm", url: "https://nationalthaiwater.onwr.go.th/storm" },
-                        { name: "เรดาร์ฝนหลวง", url: "https://huahin.royalrain.go.th/radarlink.php" },
-                        { name: "เรดาร์ตำบล", url: "https://radartambon.pages.dev/windy" },
-                        { name: "FY Earth", url: "http://fyearth.nsmc.org.cn/fydq/thailand/cloudAltas/cloudAnalysis" },
-                        { name: "Tropical Tidbits", url: "https://www.tropicaltidbits.com/" }
-                    ]
-                },
-                {
-                    name: "กล้องวงจรปิด (แต่ละจังหวัด)",
-                    links: [
-                        { name: "นครศรีธรรมราช", url: "https://www.titanjerry2.lnw.mn/nstcctv_1.html" },
-                        { name: "อุดรธานี", url: "https://www.titanjerry2.lnw.mn/udncctv_1.html" },
-                        { name: "ชลบุรี", url: "https://www.titanjerry2.lnw.mn/cbicctv_1.html" },
-                        { name: "กรุงเทพ", url: "https://www.titanjerry2.lnw.mn/bkkcctv_1.html" },
-                                            ]
+document.addEventListener('DOMContentLoaded', function() {
+    // ---------- Proxy & helper (คงเดิม) ----------
+    const PROXY_LIST = [
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+        url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        url => `https://yacdn.org/proxy/${url}`,
+        url => `https://thingproxy.freeboard.io/fetch/${url}`,
+    ];
+    const CACHE_TTL = 2 * 60 * 60 * 1000;
+    async function fetchWithProxy(url) { /* ฟังก์ชันเดิม ไม่เปลี่ยนแปลง */ 
+        let lastErr = null;
+        for (const proxyFn of PROXY_LIST) {
+            try {
+                const controller = new AbortController();
+                const tid = setTimeout(() => controller.abort(), 15000);
+                const proxyUrl = proxyFn(url);
+                const res = await fetch(proxyUrl, { signal: controller.signal });
+                clearTimeout(tid);
+                if (res.ok) return res;
+                lastErr = new Error(`HTTP ${res.status}`);
+            } catch (e) { lastErr = e; }
+        }
+        throw new Error(`ไม่สามารถเชื่อมต่อได้ — proxy ทุกตัวไม่ตอบสนอง (${lastErr?.message})`);
+    }
+
+    // Name resolver & track fetch (ย่อเพื่อความกระชับ แต่ใช้ฟังก์ชันเดิมทั้งหมด)
+    const nameCache = new Map();
+    async function fetchInternationalNameDynamic(stormId) { /* เหมือนเดิม */ 
+        if (!stormId || stormId.length < 6) return null;
+        const cached = nameCache.get(stormId);
+        if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) return cached.name;
+        const summaryUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/summary/wnp/s/${stormId}.html.en`;
+        try {
+            const response = await fetchWithProxy(summaryUrl);
+            const html = await response.text();
+            let match = html.match(/<title>Typhoon\s+\d+\s*\(([A-Z]+)\)/i);
+            if (match && match[1]) { nameCache.set(stormId, { name: match[1].toUpperCase(), timestamp: Date.now() }); return match[1].toUpperCase(); }
+            match = html.match(/Typhoon\s+\d+\s*\(([A-Z]+)\)/i);
+            if (match && match[1]) { nameCache.set(stormId, { name: match[1].toUpperCase(), timestamp: Date.now() }); return match[1].toUpperCase(); }
+        } catch(err) {}
+        const year = stormId.substring(0,4);
+        const yearUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/year/wnp/${year}.html.en`;
+        try {
+            const response = await fetchWithProxy(yearUrl);
+            const html = await response.text();
+            const rows = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi);
+            if (rows) for(let row of rows) if(row.includes(stormId)) {
+                const cells = row.match(/<td[^>]*>(.*?)<\/td>/gi);
+                if(cells && cells.length>=2) for(let i=0;i<cells.length;i++) if(cells[i].includes(stormId) && i+1<cells.length) {
+                    let nameRaw = cells[i+1].replace(/<\/?[^>]+(>|$)/g,"").trim();
+                    if(nameRaw && nameRaw!=="-") { nameCache.set(stormId, { name: nameRaw.toUpperCase(), timestamp: Date.now() }); return nameRaw.toUpperCase(); }
                 }
-            ]
-        };
-
-        // --- DOM Elements ---
-        const linkList = document.getElementById('linkList');
-        const singleIframeContainer = document.getElementById('single-iframe-container');
-        const viewerFrame = document.getElementById('viewer');
-        const datetimeSpan = document.getElementById('datetime');
-        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
-
-        let activeLinkElement = null;
-        let draggedItem = null;
-        let dragLine = document.createElement('div');
-        dragLine.className = 'drag-line';
-
-        // --- FUNCTIONS ---
-        const isWhitelisted = (url) => data.whitelist.some(whitelistedUrl => url.startsWith(whitelistedUrl));
-
-        const setActiveLink = (element) => {
-            if (activeLinkElement) {
-                activeLinkElement.classList.remove('active');
             }
-            activeLinkElement = element;
-            activeLinkElement.classList.add('active');
-        };
+        } catch(err) {}
+        return null;
+    }
+    async function fetchStormTrackWithCache(stormId) { /* เหมือนเดิม */ 
+        const cacheKey = `typhoon_track_${stormId}`;
+        const cached = localStorage.getItem(cacheKey);
+        if(cached) try {
+            const data = JSON.parse(cached);
+            if(Date.now()-data.timestamp < CACHE_TTL) return { track: data.track, last: data.last };
+            localStorage.removeItem(cacheKey);
+        } catch(e){}
+        const geoUrl = `https://agora.ex.nii.ac.jp/digital-typhoon/geojson/wnp/${stormId}.en.json`;
+        const response = await fetchWithProxy(geoUrl);
+        const json = await response.json();
+        if(!json.features || json.features.length===0) throw new Error("No track data");
+        const track = json.features.map(f => ({ lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], time: f.properties.time, pressure: f.properties.pressure, wind: f.properties.wind })).sort((a,b)=>a.time-b.time);
+        if(track.length===0) throw new Error("Empty track data");
+        const last = track[track.length-1];
+        localStorage.setItem(cacheKey, JSON.stringify({ track, last, timestamp: Date.now() }));
+        return { track, last };
+    }
 
-        // ฟังก์ชันสำหรับจัดการการแสดงผล iframe
-        const updateIframeDisplay = (url) => {
-            if (url === "https://tropic.ssec.wisc.edu/real-time/tc_diurnal_cycle/tc_diurnal_cycle.php") {
-                singleIframeContainer.classList.add('centered-iframe-container');
-            } else {
-                singleIframeContainer.classList.remove('centered-iframe-container');
-            }
-        };
+    // ---------- Map ----------
+    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom:20, subdomains:['mt0','mt1','mt2','mt3'], attribution:'&copy; Google Hybrid' });
+    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom:20, subdomains:['mt0','mt1','mt2','mt3'], attribution:'&copy; Google Satellite' });
+    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'&copy; CARTO' });
+    const map = L.map('map', { zoomControl:true, layers:[googleHybrid] }).setView([15.2,119.5],5);
+    const baseMaps = { "🛰️ Google Hybrid": googleHybrid, "🛸 Google Satellite": googleSat, "🌙 Dark Map": darkLayer };
+    L.control.layers(baseMaps, null, { collapsed:false }).addTo(map);
 
-        function buildMenu() {
-            linkList.innerHTML = "";
-            let firstEmbeddableLink = null;
+    let stormsDatabase = new Map();
+    let currentSatelliteLayer = null;
+    let currentLayerId = null;
 
-            data.categories.forEach((cat, index) => {
-                const catContainer = document.createElement('div');
-                catContainer.className = "category-container";
+    // เวลาไทย
+    function updateThaiDateTime() {
+        const now = new Date();
+        const thaiTime = new Intl.DateTimeFormat('th-TH', { timeZone:'Asia/Bangkok', weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).formatToParts(now);
+        let yearCE = now.getFullYear();
+        let buddhistYear = yearCE+543;
+        let parts = {};
+        for(let p of thaiTime) if(p.type !== 'year') parts[p.type]=p.value;
+        document.getElementById('liveThaiTime').innerHTML = `<i class="far fa-clock"></i> ${parts.weekday} ${parts.day} ${parts.month} ${buddhistYear} ${parts.hour}:${parts.minute}:${parts.second}`;
+    }
+    updateThaiDateTime(); setInterval(updateThaiDateTime,1000);
 
-                const catDiv = document.createElement('div');
-                catDiv.className = "category";
-                catDiv.textContent = cat.name;
-                catDiv.draggable = true;
+    // Satellite config (WMTS ทั้งหมด)
+    const SATELLITE_CONFIG = {
+        'MODIS_Terra_CorrectedReflectance_TrueColor': { type:'wmts', tileMatrixSet:'GoogleMapsCompatible_Level9', format:'image%2Fjpeg', maxZoom:9 },
+        'MODIS_Aqua_CorrectedReflectance_TrueColor':   { type:'wmts', tileMatrixSet:'GoogleMapsCompatible_Level9', format:'image%2Fjpeg', maxZoom:9 },
+        'Himawari_AHI_Band13_Clean_Infrared':          { type:'wmts', tileMatrixSet:'GoogleMapsCompatible_Level6', format:'image%2Fpng', maxZoom:6 },
+        'Himawari_AHI_CorrectedReflectance_TrueColor': { type:'wmts', tileMatrixSet:'GoogleMapsCompatible_Level6', format:'image%2Fjpeg', maxZoom:6 }
+    };
+    const SAT_LABELS = {
+        'MODIS_Terra_CorrectedReflectance_TrueColor': '🌍 MODIS Terra',
+        'MODIS_Aqua_CorrectedReflectance_TrueColor': '💧 MODIS Aqua',
+        'Himawari_AHI_Band13_Clean_Infrared': '🇯🇵 Himawari-8 (IR)',
+        'Himawari_AHI_CorrectedReflectance_TrueColor': '🇯🇵 Himawari-8 (True Color)'
+    };
 
-                catDiv.addEventListener('click', (e) => {
-                    catDiv.classList.toggle('active');
-                    const linksWrapper = catDiv.nextElementSibling;
-                    if (catDiv.classList.contains('active')) {
-                        linksWrapper.style.maxHeight = linksWrapper.scrollHeight + "px";
-                    } else {
-                        linksWrapper.style.maxHeight = "0";
-                    }
-                });
+    function createSatelliteTileLayer(layerId) {
+        const cfg = SATELLITE_CONFIG[layerId] || { type:'wmts', tileMatrixSet:'GoogleMapsCompatible_Level9', format:'image%2Fjpeg', maxZoom:9 };
+        const base = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/wmts.cgi';
+        const template = `${base}?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layerId}&STYLE=default&TIME=default&TILEMATRIXSET=${cfg.tileMatrixSet}&FORMAT=${cfg.format}&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+        const layer = L.tileLayer(template, { maxZoom: cfg.maxZoom, minZoom: 1, tileSize: 256, crossOrigin: true, attribution: '&copy; NASA ESDIS GIBS', errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' });
+        layer.on('tileerror', (err) => {
+            console.warn(`Tile error for ${layerId} at zoom ${err.coords.z}`, err);
+            const status = document.getElementById('satStatusMsg');
+            if(map.getZoom() > cfg.maxZoom) status.innerHTML = `⚠️ ${SAT_LABELS[layerId]} ต้องการซูมไม่เกิน ${cfg.maxZoom} (ปัจจุบันซูม ${map.getZoom()}) → ซูมออกเพื่อดูภาพ`;
+            else status.innerHTML = `⚠️ ${SAT_LABELS[layerId]} — โหลด tile ไม่สำเร็จ (ลองอีกครั้ง)`;
+        });
+        return layer;
+    }
 
-                catDiv.addEventListener('dragstart', (e) => {
-                    draggedItem = catContainer;
-                    e.dataTransfer.effectAllowed = 'move';
-                    setTimeout(() => {
-                        draggedItem.classList.add('dragging');
-                    }, 0);
+    function loadSatelliteLayer(layerId) {
+        const statusDiv = document.getElementById('satStatusMsg');
+        const label = SAT_LABELS[layerId] || layerId;
+        statusDiv.innerHTML = `⏳ กำลังโหลด ${label}...`;
+        if(currentSatelliteLayer) map.removeLayer(currentSatelliteLayer);
+        try {
+            const newLayer = createSatelliteTileLayer(layerId);
+            const opacityVal = document.getElementById('opacitySlider').value / 100;
+            newLayer.setOpacity(opacityVal);
+            newLayer.addTo(map);
+            // ดัน layer นี้ให้อยู่บนสุดเสมอ
+            newLayer.bringToFront();
+            newLayer.on('load', () => { statusDiv.innerHTML = `✅ ${label} | ความโปร่งใส ${Math.round(opacityVal*100)}% | ซูม ${map.getZoom()}`; });
+            currentSatelliteLayer = newLayer;
+            currentLayerId = layerId;
+            // เมื่อ zoom เกิน max ให้แจ้งเตือน
+            const cfg = SATELLITE_CONFIG[layerId];
+            if(cfg && map.getZoom() > cfg.maxZoom) statusDiv.innerHTML = `⚠️ ${label} รองรับสูงสุด zoom ${cfg.maxZoom} (ปัจจุบัน ${map.getZoom()}) → ซูมออกเพื่อดูภาพ`;
+        } catch(e) { statusDiv.innerHTML = `❌ โหลด ${label} ไม่สำเร็จ: ${e.message}`; }
+    }
 
-                    linkList.appendChild(dragLine);
-                });
+    function updateOpacity(val) {
+        if(currentSatelliteLayer) { currentSatelliteLayer.setOpacity(val/100); document.getElementById('opacityValue').innerText = val+'%'; }
+    }
 
-                catDiv.addEventListener('dragend', () => {
-                    if (draggedItem) {
-                        draggedItem.classList.remove('dragging');
-                    }
-                    draggedItem = null;
-                    if (dragLine.parentNode) {
-                        dragLine.parentNode.removeChild(dragLine);
-                    }
-                    updateCategoryOrder();
-                });
+    // Popup
+    function showPointPopup(point, stormDisplayName) {
+        const dateStr = new Date(point.time*1000).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',hour12:false});
+        const windKmh = (point.wind*1.852).toFixed(0);
+        const content = `<div style="min-width:220px;"><div style="display:flex; gap:8px; border-bottom:1px solid #ffaa66;"><i class="fas fa-cyclone" style="color:#ffaa66;"></i><strong>${stormDisplayName}</strong></div><div>📅 ${dateStr}</div><div>💨 ${windKmh} km/h (${point.wind} kt)</div><div>🌀 ${point.pressure?point.pressure+' hPa':'-'}</div><div>📍 ${point.lat.toFixed(2)}°N, ${point.lng.toFixed(2)}°E</div></div>`;
+        L.popup({ className:'custom-popup' }).setLatLng([point.lat,point.lng]).setContent(content).openOn(map);
+        map.panTo([point.lat,point.lng]);
+    }
 
-                const linksWrapper = document.createElement('div');
-                linksWrapper.className = "links-wrapper";
+    // Add storm (ย่อ)
+    async function addStorm(stormId) {
+        if(stormsDatabase.has(stormId)) { alert(`พายุ ${stormId} มีแล้ว`); return; }
+        const loadingDiv = document.createElement('div');
+        loadingDiv.style.cssText = 'position:fixed; bottom:20px; right:20px; z-index:9999; background:#000; backdrop-filter:blur(8px); padding:8px 18px; border-radius:40px; color:#fff;';
+        loadingDiv.innerHTML = `⏳ กำลังโหลด ${stormId}...`;
+        document.body.appendChild(loadingDiv);
+        try {
+            const { track, last } = await fetchStormTrackWithCache(stormId);
+            let stormName = await fetchInternationalNameDynamic(stormId);
+            const displayName = stormName ? `${stormName} (${stormId})` : `TYPHOON ${stormId}`;
+            const color = '#FF3333';
+            const polyline = L.polyline(track.map(p=>[p.lat,p.lng]), { color, weight:5, opacity:0.95 }).addTo(map);
+            const markerIcon = L.divIcon({ html:`<div style="font-size:34px;color:#FF5555;">🌀</div>`, iconSize:[36,36], className:'' });
+            const marker = L.marker([last.lat,last.lng], { icon:markerIcon }).addTo(map);
+            marker.bindTooltip(displayName, { permanent:true, direction:'top', className:'storm-label-custom', offset:[0,-10] });
+            stormsDatabase.set(stormId, { id:stormId, displayName, color, polyline, marker, visible:true, trackFull:track, lastPoint:last, windKnot:last.wind, pressure:last.pressure, timeUnix:last.time });
+            map.panTo([last.lat,last.lng]);
+            renderStormList();
+        } catch(err) { loadingDiv.innerHTML = `❌ โหลด ${stormId} ไม่สำเร็จ`; setTimeout(()=>loadingDiv.remove(),3000); return; }
+        loadingDiv.remove();
+    }
 
-                catContainer.appendChild(catDiv);
-                catContainer.appendChild(linksWrapper);
-                linkList.appendChild(catContainer);
-
-                cat.links.forEach(link => {
-                    // ตรวจสอบว่าลิงก์นี้เป็น TMD Radar หรือไม่
-                    const isTmdRadar = link.url === "http://www.sattmet.tmd.go.th/satmet/mergesat.html";
-                    // ลิงก์ TMD Radar ถูกย้ายไปที่หมวด 'เปิดในแท็บใหม่' จึงต้องตั้งค่า canEmbed เป็น false
-                    const canEmbed = !isTmdRadar && isWhitelisted(link.url);
-                    const icon = canEmbed ? "🖼️" : "↗️";
-
-                    const a = document.createElement('a');
-                    a.className = 'nav-link';
-                    a.innerHTML = `${icon} ${link.name}`;
-
-                    a.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        if (canEmbed) {
-                            viewerFrame.src = link.url;
-                            setActiveLink(a);
-                            updateIframeDisplay(link.url);
-                        } else {
-                            window.open(link.url, '_blank');
-                        }
-                    });
-
-                    linksWrapper.appendChild(a);
-
-                    if (!firstEmbeddableLink && canEmbed) {
-                        firstEmbeddableLink = { linkElement: a, url: link.url };
-                    }
-                });
-
-                if (index === 0) {
-                    catDiv.classList.add('active');
-                    linksWrapper.style.maxHeight = linksWrapper.scrollHeight + "px";
-                }
+    // Forecast track (ย่อ)
+    const FORECAST_COLORS = { HKO:'#FFD700', JTWC:'#FF6B6B', JMA:'#74C7EC', NMC:'#A8E6A3', CWA:'#F4A261', KMA:'#C084FC', PAGASA:'#F472B6', TMD:'#34D399', ECMWF:'#93C5FD' };
+    let forecastLayers = [];
+    function clearForecastLayers() { forecastLayers.forEach(l=>map.removeLayer(l)); forecastLayers=[]; }
+    function parseTyphoon2000(text) { /* เหมือนเดิม */ const agencies={}; let cur=null; for(let line of text.split('\n')){ line=line.trim(); if(/^[A-Z]+:$/.test(line)){ cur=line.slice(0,-1); agencies[cur]=[]; continue; } if(!cur) continue; const cm=line.match(/^\d{6}Z\s+([\d.]+)N\s+([\d.]+)E\s+([\d-]+)KT/); const fm=line.match(/^\(\+(\d+)H\)\s+([\d.]+)N\s+([\d.]+)E\s+([\d-]+)KT/); if(cm) agencies[cur].push({ lat:parseFloat(cm[1]), lng:parseFloat(cm[2]), wind:parseInt(cm[3])||0, offset:0 }); else if(fm) agencies[cur].push({ lat:parseFloat(fm[2]), lng:parseFloat(fm[3]), wind:parseInt(fm[4])||null, offset:parseInt(fm[1]) }); } return agencies; }
+    async function loadForecastTrack(stormName) {
+        const statusDiv = document.getElementById('forecastStatusMsg');
+        statusDiv.innerHTML = `⏳ กำลังโหลด ${stormName}...`;
+        clearForecastLayers();
+        const url = `https://www.typhoon2000.ph/multi/data/${stormName.toUpperCase()}.TXT`;
+        let text;
+        try { const res = await fetchWithProxy(url); text = await res.text(); } catch(e) { statusDiv.innerHTML = `❌ ${e.message}`; return; }
+        const agencies = parseTyphoon2000(text);
+        const agencyList = Object.keys(agencies).filter(k=>agencies[k].length>=2);
+        if(agencyList.length===0) { statusDiv.innerHTML = `⚠️ ไม่พบข้อมูล forecast`; return; }
+        let legendHtml = '<span style="font-weight:bold;">📍 Forecast Track:</span> ';
+        agencyList.forEach(agency => {
+            const pts = agencies[agency]; const color = FORECAST_COLORS[agency]||'#fff';
+            const poly = L.polyline(pts.map(p=>[p.lat,p.lng]), { color, weight:2.5, dashArray:'6 4' }).addTo(map);
+            forecastLayers.push(poly);
+            pts.forEach((pt,idx) => {
+                const circle = L.circleMarker([pt.lat,pt.lng], { radius: idx===0?5:4, color, weight:1.5, fillColor: idx===0?color:'#000', fillOpacity: idx===0?1:0.6 }).addTo(map);
+                circle.bindTooltip(`<b style="color:${color}">${idx===0?`${agency} ปัจจุบัน`:`${agency} +${pt.offset}h`}</b><br>📍 ${pt.lat.toFixed(1)}°N,${pt.lng.toFixed(1)}°E<br>💨 ${pt.wind?(pt.wind*1.852).toFixed(0)+' km/h':'-'}`, { className:'custom-popup', sticky:true });
+                forecastLayers.push(circle);
             });
-
-            if (firstEmbeddableLink) {
-                viewerFrame.src = firstEmbeddableLink.url;
-                setActiveLink(firstEmbeddableLink.linkElement);
-                updateIframeDisplay(firstEmbeddableLink.url);
-            }
-        }
-
-        linkList.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            if (!draggedItem) return;
-
-            const hoveredElement = e.target.closest('.category-container');
-            const rect = hoveredElement ? hoveredElement.getBoundingClientRect() : linkList.getBoundingClientRect();
-            const mouseY = e.clientY;
-
-            const isAfter = mouseY > rect.top + rect.height / 2;
-
-            if (hoveredElement) {
-                if (isAfter) {
-                    const nextElement = hoveredElement.nextElementSibling;
-                    if (nextElement) {
-                        dragLine.style.top = (nextElement.getBoundingClientRect().top - linkList.getBoundingClientRect().top) + 'px';
-                    } else {
-                        dragLine.style.top = (hoveredElement.getBoundingClientRect().bottom - linkList.getBoundingClientRect().top) + 'px';
-                    }
-                } else {
-                    dragLine.style.top = (rect.top - linkList.getBoundingClientRect().top) + 'px';
-                }
-            } else {
-                const lastElement = linkList.lastElementChild;
-                if (lastElement) {
-                    dragLine.style.top = (lastElement.getBoundingClientRect().bottom - linkList.getBoundingClientRect().top) + 'px';
-                }
-            }
+            const last = pts[pts.length-1];
+            const labelIcon = L.divIcon({ html:`<span style="background:${color};color:#000;padding:1px 5px;border-radius:8px;font-size:10px;">${agency}</span>`, className:'', iconAnchor:[0,0] });
+            const labelMark = L.marker([last.lat,last.lng], { icon:labelIcon }).addTo(map);
+            forecastLayers.push(labelMark);
+            legendHtml += `<span style="color:${color};">⬥${agency}</span> `;
         });
+        statusDiv.innerHTML = legendHtml;
+        const allPts = agencyList.flatMap(a=>agencies[a].map(p=>[p.lat,p.lng]));
+        if(allPts.length) map.fitBounds(allPts, { padding:[40,40] });
+    }
 
-        linkList.addEventListener('drop', (e) => {
-            e.preventDefault();
-            if (!draggedItem) return;
-
-            const hoveredElement = e.target.closest('.category-container');
-            if (hoveredElement && hoveredElement !== draggedItem) {
-                const rect = hoveredElement.getBoundingClientRect();
-                const mouseY = e.clientY;
-                const isAfter = mouseY > rect.top + rect.height / 2;
-
-                if (isAfter) {
-                    linkList.insertBefore(draggedItem, hoveredElement.nextSibling);
-                } else {
-                    linkList.insertBefore(draggedItem, hoveredElement);
-                }
-            } else if (!hoveredElement && draggedItem !== linkList.lastElementChild) {
-                linkList.appendChild(draggedItem);
+    // UI helpers
+    function setVisibility(id,vis){ let s=stormsDatabase.get(id); if(!s || s.visible===vis) return; if(vis){ s.polyline.addTo(map); s.marker.addTo(map); } else { map.removeLayer(s.polyline); map.removeLayer(s.marker); } s.visible=vis; renderStormList(); }
+    function removeStorm(id){ let s=stormsDatabase.get(id); if(s){ map.removeLayer(s.polyline); map.removeLayer(s.marker); stormsDatabase.delete(id); renderStormList(); } }
+    function clearAllStorms(){ stormsDatabase.forEach((s,id)=>{ map.removeLayer(s.polyline); map.removeLayer(s.marker); }); stormsDatabase.clear(); renderStormList(); }
+    function renderStormList(){
+        const cont=document.getElementById('stormListPanel');
+        if(stormsDatabase.size===0){ cont.innerHTML=`<div class="empty-message">ยังไม่มีพายุ<br>ป้อนรหัสเช่น 202606 แล้วกดเพิ่ม</div>`; return; }
+        let html='';
+        for(let [id,storm] of stormsDatabase){
+            const lastDate=new Date(storm.timeUnix*1000).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',hour12:false});
+            const windKmh=(storm.windKnot*1.852).toFixed(0);
+            const pressureVal=storm.pressure?`${storm.pressure} hPa`:'—';
+            let timelineHtml='';
+            if(storm.trackFull && storm.trackFull.length){
+                const lastPoints=[...storm.trackFull].reverse().slice(0,5);
+                timelineHtml=`<div><i class="fas fa-history"></i> <strong>คลิกจุด → Popup</strong><div>`;
+                lastPoints.forEach(pt=>{
+                    const ptDate=new Date(pt.time*1000).toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+                    const windPt=(pt.wind*1.852).toFixed(0);
+                    timelineHtml+=`<div class="timeline-item" style="border-left-color:${storm.color};" data-lat="${pt.lat}" data-lng="${pt.lng}" data-time="${pt.time}" data-wind="${pt.wind}" data-pressure="${pt.pressure||''}" data-stormname="${storm.displayName.replace(/'/g,"\\'")}">📅 ${ptDate} : <span class="storm-wind-highlight">${windPt} km/h</span> | ${pt.wind} kt</div>`;
+                });
+                timelineHtml+=`</div></div>`;
             }
-
-            if (dragLine.parentNode) {
-                dragLine.parentNode.removeChild(dragLine);
-            }
-
-            updateCategoryOrder();
-        });
-
-        function updateCategoryOrder() {
-            const newOrder = Array.from(linkList.querySelectorAll('.category')).map(el => el.textContent);
-            const newCategoriesData = newOrder.map(name => {
-                return data.categories.find(cat => cat.name === name);
-            });
-            data.categories = newCategoriesData;
+            html+=`<div class="storm-card" style="border-left-color:${storm.color};"><div class="storm-title"><span class="storm-name-id"><i class="fas fa-tornado"></i> ${storm.displayName}</span><label class="toggle-vis"><input type="checkbox" class="toggle-cb" data-id="${id}" ${storm.visible?'checked':''}> <span>แสดง</span></label></div><div class="storm-detail-row">📅 เวลาล่าสุด: ${lastDate}</div><div class="storm-detail-row">💨 ลม: ${windKmh} km/h</div><div class="storm-detail-row">🌀 ความกด: ${pressureVal}</div><div class="storm-detail-row">📍 พิกัด: ${storm.lastPoint.lat.toFixed(2)}°N, ${storm.lastPoint.lng.toFixed(2)}°E</div>${timelineHtml}<button class="remove-storm-btn" data-id="${id}"><i class="fas fa-trash-alt"></i> ลบพายุ</button></div>`;
         }
+        cont.innerHTML=html;
+        document.querySelectorAll('.toggle-cb').forEach(cb=>cb.addEventListener('change',(e)=>setVisibility(cb.dataset.id,cb.checked)));
+        document.querySelectorAll('.remove-storm-btn').forEach(btn=>btn.addEventListener('click',(e)=>removeStorm(btn.dataset.id)));
+        document.querySelectorAll('.timeline-item').forEach(el=>el.addEventListener('click',()=>{
+            const lat=parseFloat(el.dataset.lat), lng=parseFloat(el.dataset.lng), time=parseInt(el.dataset.time), wind=parseInt(el.dataset.wind), pressure=el.dataset.pressure?parseInt(el.dataset.pressure):null;
+            showPointPopup({lat,lng,time,wind,pressure}, el.dataset.stormname);
+        }));
+    }
 
-        function updateDateTime() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Bangkok' };
-            datetimeSpan.textContent = now.toLocaleDateString('th-TH', options);
-        }
+    // Event bindings
+    document.getElementById('addStormBtn').addEventListener('click',()=>{ let id=document.getElementById('stormIdInput').value.trim(); if(id && /^\d{6}$/.test(id)) addStorm(id); else alert('รหัส 6 หลัก'); });
+    document.getElementById('resetAllBtn').addEventListener('click',()=>{ if(confirm('ล้างพายุทั้งหมด?')) clearAllStorms(); });
+    document.getElementById('applySatelliteBtn').addEventListener('click',()=>{ loadSatelliteLayer(document.getElementById('satelliteLayerSelect').value); });
+    document.getElementById('opacitySlider').addEventListener('input',(e)=>{ updateOpacity(e.target.value); });
+    document.getElementById('loadForecastBtn').addEventListener('click',()=>{ let name=document.getElementById('forecastNameInput').value.trim(); if(name) loadForecastTrack(name); });
+    document.getElementById('clearForecastBtn').addEventListener('click',()=>{ clearForecastLayers(); document.getElementById('forecastStatusMsg').innerHTML='🗑️ ล้างแล้ว'; });
+    document.getElementById('stormIdInput').addEventListener('keypress',(e)=>{ if(e.key==='Enter') document.getElementById('addStormBtn').click(); });
+    document.getElementById('forecastNameInput').addEventListener('keypress',(e)=>{ if(e.key==='Enter') document.getElementById('loadForecastBtn').click(); });
+    const panel=document.getElementById('stormMasterPanel'), toggleBtn=document.getElementById('togglePanelBtn');
+    toggleBtn.addEventListener('click',()=>{ panel.classList.toggle('hidden-panel'); });
+    window.openIframe=(url)=>{ document.getElementById('dynamicIframe').src=url; document.getElementById('iframeModal').style.display='flex'; };
+    window.closeIframe=()=>{ document.getElementById('iframeModal').style.display='none'; document.getElementById('dynamicIframe').src=''; };
 
-        // --- EVENT LISTENERS & INITIALIZATION ---
-        toggleSidebarBtn.addEventListener('click', () => {
-            const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
-            localStorage.setItem('sidebar-collapsed', isCollapsed);
-        });
+    // เมื่อเปลี่ยน base map ให้ดึง satellite layer ขึ้นมาอยู่บนสุดอีกครั้ง (ป้องกันการถูกกลบ)
+    map.on('baselayerchange', () => { if(currentSatelliteLayer) currentSatelliteLayer.bringToFront(); });
 
-        const isSidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
-        if (isSidebarCollapsed) {
-            document.body.classList.add('sidebar-collapsed');
-        }
-
-        setInterval(updateDateTime, 1000);
-        updateDateTime();
-        buildMenu();
-    });
+    // โหลดเริ่มต้น
+    setTimeout(()=>{
+        if(!stormsDatabase.has('202606')) addStorm('202606').catch(e=>console.log(e));
+        loadSatelliteLayer('Himawari_AHI_Band13_Clean_Infrared');
+        loadForecastTrack('JANGMI');
+    },500);
+});
 </script>
-
 </body>
 </html>
